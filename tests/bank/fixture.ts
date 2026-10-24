@@ -1,0 +1,48 @@
+export const validBank = () => ({
+  course: { id: 'TATA77', name: 'Fourieranalys' },
+  concepts: [
+    {
+      id: 'tata77-3-startvardessatsen',
+      kind: 'sats',
+      title: 'Startvärdessatsen',
+      statementMd: "Om $u$ ... då gäller $\lim f'(t)$",
+      sourceRef: 'Sats 3.1, F3',
+      lecture: 3,
+      examCount: 1,
+      examRefs: ['2025-10-28 #3'],
+      cards: [
+        {
+          id: 'c1',
+          type: 'content',
+          answerMode: 'open',
+          promptMd: 'Vad säger startvärdessatsen?',
+          referenceAnswerMd: 'Den säger ...',
+          rubricMd: 'Ska nämna ...',
+          sourceRef: 'Sats 3.1',
+        },
+        {
+          id: 'c2',
+          type: 'conditions',
+          answerMode: 'mc',
+          promptMd: 'Vilka villkor?',
+          choices: ['A', 'B', 'C'],
+          correct: [0, 2],
+          referenceAnswerMd: 'A och C',
+          sourceRef: 'Sats 3.1',
+        },
+        {
+          id: 'c3',
+          type: 'find_error',
+          answerMode: 'open',
+          promptMd: 'Hitta felet',
+          steps: ['steg 1', 'steg 2', 'steg 3'],
+          errorStep: 1,
+          referenceAnswerMd: 'Steg 2 är fel',
+          rubricMd: 'Villkoret ... är inte uppfyllt',
+          sourceRef: 'Sats 3.1',
+          examRef: '2025-10-28 #3',
+        },
+      ],
+    },
+  ],
+})
