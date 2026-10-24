@@ -1,0 +1,62 @@
+/* Design tokens — approved mockups 2026-10-24 (see docs/superpowers/specs/2026-10-24-visual-design.md) */
+:root {
+  --bg: #F6F7F9;
+  --panel: #FFFFFF;
+  --ink: #14161C;
+  --muted: #5B6070;
+  --line: #E1E4EA;
+  --accent: #3B4BD8;
+  --accent-ink: #2A37A8;
+  --accent-soft: #E8EAFB;
+  --accent-select: #F1F3FE;
+  --streak: #B25E00;
+  --streak-bar: #E08A1E;
+  --rare-bg: #FDF0DF;
+  --rare-ink: #8A4A00;
+  --ok-bg: #EAF6EF;
+  --ok-line: #BFE3CD;
+  --ok-ink: #145A32;
+  --bad-bg: #FBECEC;
+  --bad-line: #EBC4C4;
+  --bad-ink: #8A1F1F;
+  --mastered: #1F7A4A;
+  --learning: #8FB3F0;
+  --hero-bg: #14161C;
+  --hero-ink: #FFFFFF;
+  --hero-muted: #B9BDC9;
+  --font: 'IBM Plex Sans', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --r-card: 20px;
+  --r-btn: 14px;
+  --gutter: 20px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111317;
+    --panel: #1B1E24;
+    --ink: #ECEDF0;
+    --muted: #A2A7B4;
+    --line: #2E323B;
+    --accent: #8C98FF;
+    --accent-ink: #B4BCFF;
+    --accent-soft: #252B52;
+    --accent-select: #1F2547;
+    --streak: #F0A54A;
+    --streak-bar: #E08A1E;
+    --rare-bg: #3A2A14;
+    --rare-ink: #F3C07E;
+    --ok-bg: #12291C;
+    --ok-line: #24533A;
+    --ok-ink: #9BDDB5;
+    --bad-bg: #2E1616;
+    --bad-line: #5A2A2A;
+    --bad-ink: #F0A9A9;
+    --mastered: #4CBF7F;
+    --learning: #5F7FC0;
+    --hero-bg: #ECEDF0;
+    --hero-ink: #14161C;
+    --hero-muted: #4A4F5C;
+    color-scheme: dark;
+  }
+}
