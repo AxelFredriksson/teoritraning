@@ -18,3 +18,16 @@ test('handwriting submits exported image via gradeOpen', async () => {
   expect(await screen.findByText('Saknar villkor')).toBeInTheDocument()
   expect(onAnswer).toHaveBeenCalledWith('partial', 'ai', expect.anything())
 })
+
+test('handwritten answer stays visible when grading fails', async () => {
+  const gradeOpen = vi.fn(async () => { throw new Error('429') })
+  render(<OpenCard card={card()} narrow={false} gradeOpen={gradeOpen} onAnswer={vi.fn()} exportDrawing={async () => 'IMG'} />)
+  await userEvent.click(screen.getByRole('tab', { name: 'Skriv för hand' }))
+  const canvas = screen.getByLabelText('Rityta för handskrivet svar')
+  fireEvent.pointerDown(canvas, { clientX: 10, clientY: 10, pointerId: 1, pointerType: 'pen' })
+  fireEvent.pointerMove(canvas, { clientX: 40, clientY: 30, pointerId: 1, pointerType: 'pen' })
+  fireEvent.pointerUp(canvas, { pointerId: 1, pointerType: 'pen' })
+  await userEvent.click(screen.getByRole('button', { name: 'Rätta' }))
+  await screen.findByText(/Rättning ej tillgänglig/)
+  expect(screen.getByAltText('Ditt handskrivna svar')).toHaveAttribute('src', 'data:image/jpeg;base64,IMG')
+})

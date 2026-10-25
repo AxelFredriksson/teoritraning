@@ -3,7 +3,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk'
 import { GoogleGenAI } from 'npm:@google/genai'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { estimateCostSek } from '../_shared/cost.ts'
-import { checkLimits } from '../_shared/limits.ts'
+import { checkLimits, LIMITS } from '../_shared/limits.ts'
 import { buildGradingPrompt, type GradableCard } from '../_shared/prompt.ts'
 import { parseVerdict, VERDICT_JSON_SCHEMA, type GradeResult } from '../_shared/verdict.ts'
 
@@ -22,6 +22,8 @@ function cors(req: Request): Record<string, string> {
 const json = (req: Request, status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors(req), 'Content-Type': 'application/json' } })
 
+const PROVIDER_TIMEOUT_MS = 25_000
+
 const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
 interface Usage {
@@ -30,7 +32,7 @@ interface Usage {
 }
 
 async function gradeWithClaude(model: string, system: string, userText: string, image?: string): Promise<{ result: GradeResult; usage: Usage }> {
-  const client = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY') })
+  const client = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY'), timeout: PROVIDER_TIMEOUT_MS, maxRetries: 1 })
   const content: Anthropic.ContentBlockParam[] = []
   if (image) content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } })
   content.push({ type: 'text', text: userText })
@@ -49,7 +51,7 @@ async function gradeWithClaude(model: string, system: string, userText: string, 
 }
 
 async function gradeWithGemini(model: string, system: string, userText: string, image?: string): Promise<{ result: GradeResult; usage: Usage }> {
-  const ai = new GoogleGenAI({ apiKey: Deno.env.get('GEMINI_API_KEY')! })
+  const ai = new GoogleGenAI({ apiKey: Deno.env.get('GEMINI_API_KEY')!, httpOptions: { timeout: PROVIDER_TIMEOUT_MS } })
   const parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] = []
   if (image) parts.push({ inlineData: { mimeType: 'image/jpeg', data: image } })
   parts.push({ text: userText })
@@ -84,25 +86,30 @@ Deno.serve(async (req) => {
   if (!body.card_id || (!body.text && !body.image_base64)) return json(req, 400, { error: 'missing fields' })
   const kind = body.image_base64 ? 'image' : 'text'
 
-  // 2. limits
-  const now = Date.now()
-  const since = (ms: number) => new Date(now - ms).toISOString()
-  const count = async (fromIso: string, onlyImages = false) => {
-    let q = admin.from('grading_log').select('id', { count: 'exact', head: true }).eq('user_id', user.id).gte('created_at', fromIso)
-    if (onlyImages) q = q.eq('kind', 'image')
-    const { count } = await q
-    return count ?? 0
-  }
-  const [hour, day, imageDay] = await Promise.all([count(since(3_600_000)), count(since(86_400_000)), count(since(86_400_000), true)])
-  const limit = checkLimits({ hour, day, imageDay }, kind, {
+  // 2. limits: size here, counts atomically in the database (reserves a log row)
+  const size = checkLimits({ hour: 0, day: 0, imageDay: 0 }, kind, {
     chars: body.text?.length,
     bytes: body.image_base64 ? Math.floor((body.image_base64.length * 3) / 4) : undefined,
   })
-  if (!limit.ok) return json(req, 429, { error: limit.reason })
+  if (!size.ok) return json(req, 429, { error: size.reason })
+  const { data: reservation, error: resErr } = await admin.rpc('reserve_grading', {
+    p_user: user.id,
+    p_kind: kind,
+    p_hour_max: LIMITS.perHour,
+    p_day_max: LIMITS.perDay,
+    p_image_max: LIMITS.imagesPerDay,
+  })
+  if (resErr || !reservation) return json(req, 502, { error: 'reservation failed' })
+  if (reservation.reason) return json(req, 429, { error: reservation.reason })
+  const logId: number = reservation.id
+  const finish = (fields: Record<string, unknown>) => admin.from('grading_log').update(fields).eq('id', logId)
 
   // 3. card from the database, never from the client
   const { data: card } = await admin.from('cards').select('prompt_md, reference_answer_md, rubric_md').eq('id', body.card_id).maybeSingle()
-  if (!card) return json(req, 404, { error: 'card' })
+  if (!card) {
+    await finish({ provider: 'none', model: 'none' })
+    return json(req, 404, { error: 'card' })
+  }
 
   // 4. settings
   const { data: rows } = await admin.from('settings').select('key, value')
@@ -110,7 +117,10 @@ Deno.serve(async (req) => {
   const provider = settings.provider === 'gemini' ? 'gemini' : 'claude'
   const model: string | null =
     provider === 'gemini' ? settings.gemini_model : kind === 'image' ? settings.claude_image_model : settings.claude_text_model
-  if (!model) return json(req, 502, { error: 'no model configured' })
+  if (!model) {
+    await finish({ provider, model: 'none' })
+    return json(req, 502, { error: 'no model configured' })
+  }
 
   // 5. grade
   const { system, userText } = buildGradingPrompt(card as GradableCard, { text: body.text, hasImage: kind === 'image' })
@@ -119,10 +129,11 @@ Deno.serve(async (req) => {
       provider === 'gemini'
         ? await gradeWithGemini(model, system, userText, body.image_base64)
         : await gradeWithClaude(model, system, userText, body.image_base64)
-    await admin.from('grading_log').insert({ user_id: user.id, provider, model, kind, ok: true, est_cost_sek: estimateCostSek(model, usage) })
+    await finish({ provider, model, ok: true, est_cost_sek: estimateCostSek(model, usage) })
     return json(req, 200, result)
   } catch (e) {
-    await admin.from('grading_log').insert({ user_id: user.id, provider, model, kind, ok: false, est_cost_sek: 0 })
-    return json(req, 502, { error: String(e instanceof Error ? e.message : e).slice(0, 200) })
+    await finish({ provider, model })
+    console.error('grading failed', e)
+    return json(req, 502, { error: 'provider error' })
   }
 })

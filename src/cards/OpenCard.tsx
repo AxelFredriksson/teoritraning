@@ -29,6 +29,7 @@ export function OpenCard({
   const pad = useRef<CanvasHandle>(null)
   const [text, setText] = useState('')
   const [phase, setPhase] = useState<Phase>({ name: 'answering' })
+  const [image, setImage] = useState<string | null>(null)
 
   async function submit() {
     setPhase({ name: 'grading' })
@@ -37,7 +38,9 @@ export function OpenCard({
       if (mode === 'hand') {
         const c = pad.current?.canvas()
         if (!c) throw new Error('no canvas')
-        input = { imageBase64: await (exportDrawing ?? exportImage)(c) }
+        const b64 = await (exportDrawing ?? exportImage)(c)
+        setImage(b64)
+        input = { imageBase64: b64 }
       }
       const result = await gradeOpen(card.id, input)
       setPhase({ name: 'graded', result })
@@ -52,7 +55,8 @@ export function OpenCard({
   if (phase.name === 'graded') {
     return (
       <div className="stack">
-        {text && <div className="panel"><span className="muted">Ditt svar</span><MathText md={text} /></div>}
+        {mode !== 'hand' && text && <div className="panel"><span className="muted">Ditt svar</span><MathText md={text} /></div>}
+        {mode === 'hand' && image && <img className="hand-answer" alt="Ditt handskrivna svar" src={`data:image/jpeg;base64,${image}`} />}
         <p className="muted">{phase.result.feedback}</p>
         {phase.result.missing.length > 0 && (
           <ul className="muted">{phase.result.missing.map((m, i) => <li key={i}>{m}</li>)}</ul>
@@ -65,7 +69,8 @@ export function OpenCard({
   if (phase.name === 'self') {
     return (
       <div className="stack">
-        {text && <div className="panel"><span className="muted">Ditt svar</span><MathText md={text} /></div>}
+        {mode !== 'hand' && text && <div className="panel"><span className="muted">Ditt svar</span><MathText md={text} /></div>}
+        {mode === 'hand' && image && <img className="hand-answer" alt="Ditt handskrivna svar" src={`data:image/jpeg;base64,${image}`} />}
         <SelfGrade reference={card.reference_answer_md} note={phase.note} onGrade={selfGrade} />
       </div>
     )

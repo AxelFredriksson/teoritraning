@@ -8,6 +8,8 @@ export interface Stats {
 }
 
 export interface ReviewWrite {
+  /** Client-generated id so a retried write never duplicates its review_log row. */
+  clientId?: string
   cardId: string
   verdict: Verdict
   source: 'ai' | 'mc' | 'self'
@@ -41,6 +43,10 @@ function writePending(list: ReviewWrite[]) {
   }
 }
 
+export const GRADE_TIMEOUT_MS = 30_000
+
+let flushing: Promise<number> | null = null
+
 export function createApi(client: Supa) {
   async function userId(): Promise<string> {
     const { data } = await client.auth.getUser()
@@ -52,7 +58,9 @@ export function createApi(client: Supa) {
     const uid = await userId()
     const results = await Promise.all([
       client.from('card_state').upsert({ user_id: uid, card_id: r.cardId, fsrs: r.state.fsrs, due: r.state.due }),
-      client.from('review_log').insert({ user_id: uid, card_id: r.cardId, verdict: r.verdict, source: r.source }),
+      client
+        .from('review_log')
+        .upsert({ client_id: r.clientId, user_id: uid, card_id: r.cardId, verdict: r.verdict, source: r.source }, { onConflict: 'client_id', ignoreDuplicates: true }),
       client.from('user_stats').upsert({ user_id: uid, points: r.stats.points, streak: r.stats.streak, last_active: r.stats.lastActive }),
     ])
     const failed = results.find((x) => x.error)
@@ -60,28 +68,35 @@ export function createApi(client: Supa) {
   }
 
   return {
+    /** Queues the review behind any earlier unsent ones, then flushes in order so newer data always lands last. */
     async saveReview(r: ReviewWrite): Promise<void> {
-      try {
-        await write(r)
-      } catch {
-        writePending([...readPending(), r])
-      }
+      writePending([...readPending(), { ...r, clientId: r.clientId ?? crypto.randomUUID() }])
+      await this.flushPending()
     },
 
-    async flushPending(): Promise<number> {
-      const queue = readPending()
-      const left: ReviewWrite[] = []
-      let done = 0
-      for (const r of queue) {
-        try {
-          await write(r)
-          done++
-        } catch {
-          left.push(r)
+    /** Writes queued reviews oldest first and stops at the first failure, keeping it and everything after. */
+    flushPending(): Promise<number> {
+      if (flushing) return flushing.then(() => this.flushPending())
+      flushing = (async () => {
+        const queue = readPending()
+        let done = 0
+        for (const item of queue) {
+          const withId = { ...item, clientId: item.clientId ?? crypto.randomUUID() }
+          try {
+            await write(withId)
+            done++
+          } catch {
+            // re-read: reviews queued while this flush ran must survive
+            writePending([withId, ...readPending().slice(done + 1)])
+            return done
+          }
         }
-      }
-      writePending(left)
-      return done
+        writePending(readPending().slice(queue.length))
+        return done
+      })().finally(() => {
+        flushing = null
+      })
+      return flushing
     },
 
     async loadCourse(courseId: string): Promise<CourseData> {
@@ -130,6 +145,7 @@ export function createApi(client: Supa) {
     async gradeOpen(cardId: string, input: { text?: string; imageBase64?: string }): Promise<GradeResult> {
       const { data, error } = await client.functions.invoke('grade', {
         body: { card_id: cardId, text: input.text, image_base64: input.imageBase64 },
+        timeout: GRADE_TIMEOUT_MS,
       })
       if (error) throw error
       return data as GradeResult

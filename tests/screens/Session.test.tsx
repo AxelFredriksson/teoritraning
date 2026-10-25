@@ -108,3 +108,14 @@ test('session shows done message when no cards left', () => {
   render(<Session data={data([])} filter={{}} api={fakeApi()} onExit={() => {}} />)
   expect(screen.getByText(/Inga fler kort/)).toBeInTheDocument()
 })
+
+test('self-grade can only be submitted once per card', async () => {
+  Object.defineProperty(window, 'innerWidth', { value: 390, configurable: true })
+  const api = fakeApi()
+  render(<Session data={data([open])} filter={{}} api={api} onExit={() => {}} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Visa svar' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Rätt' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Rätt' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Fel' }))
+  expect(api.saveReview).toHaveBeenCalledTimes(1)
+})
