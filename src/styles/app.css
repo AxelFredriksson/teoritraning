@@ -75,3 +75,8 @@ textarea { min-height: 140px; resize: vertical; }
 .streak { color: var(--streak); }
 .points { color: var(--accent); }
 .login { justify-content: center; max-width: 420px; }
+.pen-area {
+  position: relative; border: 1px solid var(--line); border-radius: var(--r-card); overflow: hidden;
+  background: #fff linear-gradient(#EEF0F4 1px, transparent 1px) 0 0 / 100% 40px;
+}
+.pen-tools { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 8px; }
