@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createAdminApi } from './data/adminApi'
 import { createApi, type CourseData } from './data/api'
 import { loginAuth, supabase } from './lib/supabase'
+import { Admin } from './screens/Admin'
 import { CourseSelect } from './screens/CourseSelect'
 import { Home } from './screens/Home'
 import { Login } from './screens/Login'
@@ -22,6 +24,7 @@ function readLastCourse(): string | null {
 
 export default function App() {
   const api = useMemo(() => createApi(supabase), [])
+  const adminApi = useMemo(() => createAdminApi(supabase), [])
   const [signedIn, setSignedIn] = useState<boolean | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [courseId, setCourseId] = useState<string | null>(readLastCourse)
@@ -92,6 +95,10 @@ export default function App() {
         }}
       />
     )
+  }
+
+  if (screen.name === 'admin' && isAdmin) {
+    return <Admin api={adminApi} onBack={() => { setScreen({ name: 'home' }); reload() }} />
   }
 
   if (screen.name === 'overview') {
