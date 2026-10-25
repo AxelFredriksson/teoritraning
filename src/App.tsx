@@ -1,122 +1,107 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createApi, type CourseData } from './data/api'
+import { loginAuth, supabase } from './lib/supabase'
+import { CourseSelect } from './screens/CourseSelect'
+import { Home } from './screens/Home'
+import { Login } from './screens/Login'
+import { Session } from './screens/Session'
+import type { PickFilter } from './session/picker'
 
-function App() {
-  const [count, setCount] = useState(0)
+type Screen = { name: 'courses' } | { name: 'home' } | { name: 'session'; filter: PickFilter } | { name: 'overview' } | { name: 'admin' }
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+const COURSE_KEY = 'lastCourse'
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+function readLastCourse(): string | null {
+  try {
+    return localStorage.getItem(COURSE_KEY)
+  } catch {
+    return null
+  }
 }
 
-export default App
+export default function App() {
+  const api = useMemo(() => createApi(supabase), [])
+  const [signedIn, setSignedIn] = useState<boolean | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [courseId, setCourseId] = useState<string | null>(readLastCourse)
+  const [data, setData] = useState<CourseData | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [screen, setScreen] = useState<Screen>(courseId ? { name: 'home' } : { name: 'courses' })
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session))
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => setSignedIn(!!session))
+    return () => sub.subscription.unsubscribe()
+  }, [])
+
+  const reload = useCallback(async () => {
+    if (!courseId) return
+    setError(null)
+    try {
+      setData(await api.loadCourse(courseId))
+    } catch {
+      setError('Kunde inte ladda kursen. Kontrollera nätverket.')
+    }
+  }, [api, courseId])
+
+  useEffect(() => {
+    if (!signedIn) return
+    api.flushPending().finally(reload)
+    api.isAdmin().then(setIsAdmin)
+  }, [signedIn, api, reload])
+
+  const listCourses = useCallback(() => api.listCourses(), [api])
+
+  if (signedIn === null) return <main className="screen"><p className="muted">Laddar…</p></main>
+  if (!signedIn) return <Login auth={loginAuth} onLoggedIn={() => setSignedIn(true)} />
+
+  if (screen.name === 'courses' || !courseId) {
+    return (
+      <CourseSelect
+        listCourses={listCourses}
+        onPick={(id) => {
+          try { localStorage.setItem(COURSE_KEY, id) } catch { /* ignore */ }
+          setData(null)
+          setCourseId(id)
+          setScreen({ name: 'home' })
+        }}
+      />
+    )
+  }
+
+  if (error) {
+    return (
+      <main className="screen">
+        <p role="alert" className="alert">{error}</p>
+        <button className="btn" onClick={reload}>Försök igen</button>
+      </main>
+    )
+  }
+  if (!data) return <main className="screen"><p className="muted">Laddar kursen…</p></main>
+
+  if (screen.name === 'session') {
+    return (
+      <Session
+        data={data}
+        filter={screen.filter}
+        api={api}
+        onExit={() => {
+          setScreen({ name: 'home' })
+          reload()
+        }}
+      />
+    )
+  }
+
+  return (
+    <Home
+      courseId={courseId}
+      data={data}
+      isAdmin={isAdmin}
+      onStart={(filter) => setScreen({ name: 'session', filter })}
+      onOverview={() => setScreen({ name: 'overview' })}
+      onAdmin={() => setScreen({ name: 'admin' })}
+      onSwitchCourse={() => setScreen({ name: 'courses' })}
+    />
+  )
+}
