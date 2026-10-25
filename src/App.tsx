@@ -4,6 +4,7 @@ import { loginAuth, supabase } from './lib/supabase'
 import { CourseSelect } from './screens/CourseSelect'
 import { Home } from './screens/Home'
 import { Login } from './screens/Login'
+import { Overview } from './screens/Overview'
 import { Session } from './screens/Session'
 import type { PickFilter } from './session/picker'
 
@@ -91,6 +92,10 @@ export default function App() {
         }}
       />
     )
+  }
+
+  if (screen.name === 'overview') {
+    return <Overview data={data} onBack={() => setScreen({ name: 'home' })} onPractice={(filter) => setScreen({ name: 'session', filter })} />
   }
 
   return (

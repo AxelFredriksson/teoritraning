@@ -44,3 +44,8 @@ test('pickNext excludes given ids', () => {
   const cards = [card({ id: 'a' }), card({ id: 'b' })]
   expect(pickNext(cards, concepts, new Map(), now, { exclude: new Set(['a']) })?.id).toBe('b')
 })
+
+test('pickNext respects conceptId filter', () => {
+  const cards = [card({ id: 'x', concept_id: 'common' }), card({ id: 'y', concept_id: 'rare' })]
+  expect(pickNext(cards, concepts, new Map(), now, { conceptId: 'common' })?.id).toBe('x')
+})
