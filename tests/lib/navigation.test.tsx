@@ -27,3 +27,14 @@ test('reset replaces the stack', () => {
   expect(result.current.screen).toEqual({ name: 'home' })
   expect(result.current.canGoBack).toBe(false)
 })
+
+test('one navigate adds exactly one history entry under StrictMode', async () => {
+  const { StrictMode, createElement } = await import('react')
+  const wrapper = ({ children }: { children: React.ReactNode }) => createElement(StrictMode, null, children)
+  const { result } = renderHook(() => useNavigation<S>({ name: 'home' }), { wrapper })
+  const before = window.history.length
+  act(() => result.current.navigate({ name: 'overview' }))
+  expect(window.history.length).toBe(before + 1)
+  act(() => result.current.back())
+  await waitFor(() => expect(result.current.screen).toEqual({ name: 'home' }))
+})

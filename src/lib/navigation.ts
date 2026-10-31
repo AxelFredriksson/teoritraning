@@ -27,12 +27,12 @@ export function useNavigation<S>(initial: S) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // pushState must run once per navigate, never inside a state updater (StrictMode calls those twice)
   const navigate = useCallback((screen: S) => {
-    setEntry((cur) => {
-      const e = { screen, depth: cur.depth + 1 }
-      window.history.pushState({ nav: e }, '')
-      return e
-    })
+    const cur = (window.history.state as { nav?: Entry<S> } | null)?.nav
+    const e = { screen, depth: (cur?.depth ?? 0) + 1 }
+    window.history.pushState({ nav: e }, '')
+    setEntry(e)
   }, [])
 
   const reset = useCallback((screen: S) => {
