@@ -63,7 +63,7 @@ export function FindErrorCard({
         </>
       ) : (
         <>
-          {done.feedback && <p className="muted">{done.feedback}</p>}
+          {done.feedback && <div className="feedback muted"><MathText md={done.feedback} /></div>}
           <div className="panel"><span className="muted">Förklaring</span><MathText md={card.reference_answer_md} /></div>
         </>
       )}

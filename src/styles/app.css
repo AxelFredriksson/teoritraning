@@ -81,3 +81,6 @@ textarea { min-height: 140px; resize: vertical; }
 }
 .pen-tools { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 8px; }
 .hand-answer { width: 100%; border: 1px solid var(--line); border-radius: var(--r-card); background: #fff; }
+.math-text, .math-inline { line-height: 1.75; }
+.math-text .katex, .math-inline .katex { font-size: 1.05em; }
+.feedback ul { margin: .25em 0 0; padding-left: 1.2em; }

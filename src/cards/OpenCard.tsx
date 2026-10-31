@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Canvas, type CanvasHandle } from '../handwriting/Canvas'
 import { exportImage } from '../handwriting/exportImage'
-import { MathText } from '../math/MathText'
+import { MathInline, MathText } from '../math/MathText'
 import type { CardRow, GradeResult, Verdict } from '../types'
 import { SelfGrade } from './SelfGrade'
 
@@ -57,10 +57,12 @@ export function OpenCard({
       <div className="stack">
         {mode !== 'hand' && text && <div className="panel"><span className="muted">Ditt svar</span><MathText md={text} /></div>}
         {mode === 'hand' && image && <img className="hand-answer" alt="Ditt handskrivna svar" src={`data:image/jpeg;base64,${image}`} />}
-        <p className="muted">{phase.result.feedback}</p>
-        {phase.result.missing.length > 0 && (
-          <ul className="muted">{phase.result.missing.map((m, i) => <li key={i}>{m}</li>)}</ul>
-        )}
+        <div className="feedback muted">
+          <MathText md={phase.result.feedback} />
+          {phase.result.missing.length > 0 && (
+            <ul>{phase.result.missing.map((m, i) => <li key={i}><MathInline md={m} /></li>)}</ul>
+          )}
+        </div>
         <div className="panel"><span className="muted">Referenssvar</span><MathText md={card.reference_answer_md} /></div>
       </div>
     )
@@ -97,7 +99,7 @@ export function OpenCard({
       ) : (
         <>
           <label htmlFor={`ans-${card.id}`}>Ditt svar</label>
-          <textarea id={`ans-${card.id}`} maxLength={MAX_CHARS} value={text} onChange={(e) => setText(e.target.value)} placeholder="Skriv med egna ord. Matte som $\int_0^\infty f(t)\,dt$." />
+          <textarea id={`ans-${card.id}`} maxLength={MAX_CHARS} value={text} onChange={(e) => setText(e.target.value)} placeholder="Skriv med egna ord. Formler skrivs i LaTeX mellan dollartecken – se förhandsvisningen nedan." />
           <div className="row">
             <span className="muted">{text.length} / {MAX_CHARS}</span>
           </div>

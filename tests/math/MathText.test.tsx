@@ -10,3 +10,10 @@ test('MathText renders $\int_0^\infty$ as katex element', () => {
 test('MathText with "$\frac{1$" renders without throwing', () => {
   expect(() => render(<MathText md={'Trasig $\frac{1$ text'} />)).not.toThrow()
 })
+
+test('MathInline renders math without wrapping paragraph', async () => {
+  const { MathInline } = await import('../../src/math/MathText')
+  const { container } = render(<h2><MathInline md={'Distribution $\mathcal D\'(I)$'} /></h2>)
+  expect(container.querySelector('h2 .katex')).not.toBeNull()
+  expect(container.querySelector('h2 p')).toBeNull()
+})

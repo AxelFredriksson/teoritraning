@@ -1,4 +1,5 @@
 import type { CourseData } from '../data/api'
+import { MathInline } from '../math/MathText'
 import type { PickFilter } from '../session/picker'
 import type { CardRow, CardState } from '../types'
 
@@ -24,7 +25,7 @@ export function Overview({ data, onBack, onPractice }: { data: CourseData; onBac
   for (const c of data.cards) byConcept.set(c.concept_id, [...(byConcept.get(c.concept_id) ?? []), c])
   const rows = data.concepts
     .map((k) => ({ k, cards: byConcept.get(k.id) ?? [], m: conceptMastery(byConcept.get(k.id) ?? [], data.states) }))
-    .sort((a, b) => a.k.lecture - b.k.lecture || a.k.id.localeCompare(b.k.id))
+    .sort((a, b) => a.k.lecture - b.k.lecture || a.k.title.localeCompare(b.k.title, 'sv', { numeric: true }))
   const totals = { new: 0, learning: 0, mastered: 0 }
   rows.forEach((r) => totals[r.m]++)
   const pct = (n: number) => `${rows.length ? (100 * n) / rows.length : 0}%`
@@ -54,7 +55,7 @@ export function Overview({ data, onBack, onPractice }: { data: CourseData; onBac
             <button key={k.id} className="row-btn" style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }} onClick={() => onPractice({ conceptId: k.id })}>
               <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 5, background: DOT[m], flex: '0 0 auto' }} />
               <span className="stack" style={{ gap: 2, flex: '1 1 auto' }}>
-                <span className="row-title">{k.title}</span>
+                <span className="row-title"><MathInline md={k.title} /></span>
                 <span className="muted">{LABEL[m]} · {cards.length} kort</span>
               </span>
               {k.exam_count <= 1 ? <span className="tag rare">Sällsynt</span> : <span className="mono muted">{k.exam_count} tentor</span>}

@@ -5,7 +5,7 @@ import { OpenCard } from '../cards/OpenCard'
 import { ResultBox } from '../cards/SelfGrade'
 import type { Api, CourseData, Stats } from '../data/api'
 import { nextStreak, pointsFor } from '../game/points'
-import { MathText } from '../math/MathText'
+import { MathInline, MathText } from '../math/MathText'
 import { pickNext, type PickFilter } from '../session/picker'
 import { schedule } from '../srs/scheduler'
 import type { CardRow, CardState, CardType, Verdict } from '../types'
@@ -100,7 +100,7 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
         {concept && <span className="tag plain">F{concept.lecture}</span>}
       </div>
       <section className="panel stack" style={{ gap: 6 }}>
-        <h2 className="muted" style={{ fontSize: 14, fontWeight: 500 }}>{concept?.title ?? ''} · {TYPE_LABEL[current.type]}</h2>
+        <h2 className="muted" style={{ fontSize: 14, fontWeight: 500 }}><MathInline md={concept?.title ?? ''} /> · {TYPE_LABEL[current.type]}</h2>
         <div style={{ fontSize: 18, fontWeight: 500 }}><MathText md={current.prompt_md} /></div>
       </section>
 

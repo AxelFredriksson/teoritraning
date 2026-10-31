@@ -119,3 +119,20 @@ test('self-grade can only be submitted once per card', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Fel' }))
   expect(api.saveReview).toHaveBeenCalledTimes(1)
 })
+
+test('concept title math is rendered in the card heading', () => {
+  const d = data([open])
+  d.concepts = [concept({ title: 'Distribution $\mathcal D\'(I)$' })]
+  const { container } = render(<Session data={d} filter={{}} api={fakeApi()} onExit={() => {}} />)
+  expect(container.querySelector('h2 .katex')).not.toBeNull()
+})
+
+test('ai feedback and missing points render math', async () => {
+  wide()
+  const api = fakeApi({ gradeOpen: vi.fn(async () => ({ verdict: 'partial' as const, feedback: 'Saknar $u_n(t)$', missing: ['Villkoret $\sigma\in\Sigma_u$'] })) })
+  const { container } = render(<Session data={data([open])} filter={{}} api={api} onExit={() => {}} />)
+  await userEvent.type(screen.getByLabelText('Ditt svar'), 'svar')
+  await userEvent.click(screen.getByRole('button', { name: 'Rätta' }))
+  await screen.findByText(/Saknar/)
+  expect(container.querySelectorAll('.feedback .katex').length).toBeGreaterThanOrEqual(2)
+})

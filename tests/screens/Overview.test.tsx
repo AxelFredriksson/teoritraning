@@ -41,3 +41,10 @@ test('tapping a concept starts practice filtered to it', async () => {
   await userEvent.click(screen.getByRole('button', { name: /Startvärdessatsen/ }))
   expect(onPractice).toHaveBeenCalledWith({ conceptId: 'rare' })
 })
+
+test('overview renders math in concept titles', () => {
+  const d = data()
+  d.concepts[0].title = 'Sats 3.6 ($L^1*L^\infty$)'
+  const { container } = render(<Overview data={d} onBack={() => {}} onPractice={() => {}} />)
+  expect(container.querySelector('.row-title .katex')).not.toBeNull()
+})

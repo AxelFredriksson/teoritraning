@@ -67,3 +67,7 @@ test('estimateCostSek haiku 2000 in / 500 out ≈ 0.0049', () => {
 test('estimateCostSek gemini is free', () => {
   expect(estimateCostSek('gemini-3-flash', { input_tokens: 2000, output_tokens: 500 })).toBe(0)
 })
+
+test('system prompt asks for LaTeX in feedback', () => {
+  expect(buildGradingPrompt(card, { text: 'x', hasImage: false }).system).toMatch(/LaTeX/)
+})
