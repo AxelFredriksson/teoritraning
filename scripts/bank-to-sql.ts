@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { BankSchema, type Bank } from '../src/bank/schema'
 
@@ -12,8 +12,8 @@ const CARD_COLS = [
   'reference_answer_md', 'rubric_md', 'steps', 'error_step', 'source_ref', 'exam_ref', 'status', 'verify_note',
 ]
 
-export function bankToSql(bank: Bank): string {
-  const out: string[] = ['begin;']
+function bankToStatements(bank: Bank): string[] {
+  const out: string[] = []
   const c = bank.course
   out.push(
     `insert into courses (id, name) values (${q(c.id)}, ${q(c.name)}) on conflict (id) do update set name = excluded.name;`,
@@ -36,8 +36,26 @@ export function bankToSql(bank: Bank): string {
       )
     }
   }
-  out.push('commit;')
-  return out.join('\n') + '\n'
+  return out
+}
+
+export function bankToSql(bank: Bank): string {
+  return ['begin;', ...bankToStatements(bank), 'commit;'].join('\n') + '\n'
+}
+
+/** Splits into transactions of at most ~maxBytes each, only ever between whole statements. */
+export function bankToSqlChunks(bank: Bank, maxBytes: number): string[] {
+  const chunks: string[][] = [[]]
+  let size = 0
+  for (const st of bankToStatements(bank)) {
+    if (size + st.length > maxBytes && chunks[chunks.length - 1].length) {
+      chunks.push([])
+      size = 0
+    }
+    chunks[chunks.length - 1].push(st)
+    size += st.length
+  }
+  return chunks.map((c) => ['begin;', ...c, 'commit;'].join('\n') + '\n')
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
@@ -46,5 +64,12 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     console.error(JSON.stringify(parsed.error.issues, null, 2))
     process.exit(1)
   }
-  process.stdout.write(bankToSql(parsed.data))
+  const outDir = process.argv[3]
+  if (outDir) {
+    const chunks = bankToSqlChunks(parsed.data, 200_000)
+    chunks.forEach((c, i) => writeFileSync(`${outDir}/del-${i + 1}-av-${chunks.length}.sql`, c))
+    console.error(`${chunks.length} files written to ${outDir}`)
+  } else {
+    process.stdout.write(bankToSql(parsed.data))
+  }
 }

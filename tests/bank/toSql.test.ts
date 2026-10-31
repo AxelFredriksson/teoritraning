@@ -18,3 +18,19 @@ test('bankToSql output contains on conflict for concepts and cards', () => {
 test('bankToSql does not resurrect rejected cards', () => {
   expect(sql()).toContain("where cards.status <> 'rejected'")
 })
+
+test('bankToSqlChunks never splits a statement and keeps multi-line text intact', async () => {
+  const { bankToSqlChunks } = await import('../../scripts/bank-to-sql')
+  const b = validBank()
+  b.concepts[0].statementMd = 'Rad ett\n\nRad tre efter tom rad'
+  const bank = BankSchema.parse(b)
+  const chunks = bankToSqlChunks(bank, 300)
+  expect(chunks.length).toBeGreaterThan(1)
+  for (const c of chunks) {
+    expect(c.startsWith('begin;\n')).toBe(true)
+    expect(c.trimEnd().endsWith('commit;')).toBe(true)
+    // every chunk has balanced single quotes (escaped '' counts as two)
+    expect((c.match(/'/g) ?? []).length % 2).toBe(0)
+  }
+  expect(chunks.join('\n')).toContain('Rad ett\n\nRad tre efter tom rad')
+})
