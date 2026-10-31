@@ -71,3 +71,10 @@ test('estimateCostSek gemini is free', () => {
 test('system prompt asks for LaTeX in feedback', () => {
   expect(buildGradingPrompt(card, { text: 'x', hasImage: false }).system).toMatch(/LaTeX/)
 })
+
+test('LaTeX examples in system prompt keep their backslashes', () => {
+  const { system } = buildGradingPrompt(card, { text: 'x', hasImage: false })
+  expect(system).toContain(String.raw`$u_n(t)\to u(t)$`)
+  expect(system).toContain(String.raw`$\sigma\in\Sigma_u$`)
+  expect(system).not.toContain('\t')
+})
