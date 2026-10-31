@@ -29,3 +29,11 @@ test('schema rejects open card without rubric', () => {
   delete (b.concepts[0].cards[0] as { rubricMd?: string }).rubricMd
   expect(BankSchema.safeParse(b).success).toBe(false)
 })
+
+test('schema accepts card title and level 1-3, rejects level 4', () => {
+  const b = validBank()
+  Object.assign(b.concepts[0].cards[0], { title: 'Formulera satsen', level: 1 })
+  expect(BankSchema.safeParse(b).success).toBe(true)
+  Object.assign(b.concepts[0].cards[0], { level: 4 })
+  expect(BankSchema.safeParse(b).success).toBe(false)
+})

@@ -12,9 +12,12 @@ for (const f of readdirSync('bank/parts').filter((f) => f.endsWith('.json')).sor
   if (!existsSync(vpath)) { report.push(`${f}: skipped (not verified)`); continue }
   const part = JSON.parse(readFileSync(`bank/parts/${f}`, 'utf8'))
   const v: Verdicts = JSON.parse(readFileSync(vpath, 'utf8'))
+  const mpath = `bank/meta/${f}`
+  const meta: Record<string, { title: string; level: number }> = existsSync(mpath) ? JSON.parse(readFileSync(mpath, 'utf8')) : {}
   let flagged = 0, missing = 0
   for (const k of part.concepts) {
     for (const c of k.cards) {
+      if (meta[c.id]) Object.assign(c, { title: meta[c.id].title, level: meta[c.id].level })
       const r = v[c.id]
       if (!r) { missing++; c.status = 'flagged'; c.verifyNote = 'Ej kontrollerad'; continue }
       if (r.result === 'FLAG') { flagged++; c.status = 'flagged'; c.verifyNote = r.note }

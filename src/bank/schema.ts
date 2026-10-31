@@ -14,6 +14,8 @@ export const CardSchema = z
     errorStep: z.number().int().nonnegative().optional(),
     sourceRef: z.string().min(1),
     examRef: z.string().optional(),
+    title: z.string().min(1).max(120).optional(),
+    level: z.number().int().min(1).max(3).default(2),
     status: z.enum(['active', 'flagged']).default('active'),
     verifyNote: z.string().optional(),
   })

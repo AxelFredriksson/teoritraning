@@ -34,3 +34,12 @@ test('bankToSqlChunks never splits a statement and keeps multi-line text intact'
   }
   expect(chunks.join('\n')).toContain('Rad ett\n\nRad tre efter tom rad')
 })
+
+test('bankToSql writes title and level', () => {
+  const b = validBank()
+  Object.assign(b.concepts[0].cards[0], { title: 'Formulera satsen', level: 1 })
+  const s = bankToSql(BankSchema.parse(b))
+  expect(s).toContain('title = excluded.title')
+  expect(s).toContain('level = excluded.level')
+  expect(s).toContain("'Formulera satsen'")
+})
