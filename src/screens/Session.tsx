@@ -18,22 +18,57 @@ export type SessionApi = Pick<Api, 'saveReview' | 'reportCard' | 'gradeOpen'>
 export function Session({ data, filter, api, onExit }: { data: CourseData; filter: PickFilter; api: SessionApi; onExit: () => void }) {
   const [states, setStates] = useState<Map<string, CardState>>(() => new Map(data.states))
   const [stats, setStats] = useState<Stats>(data.stats)
-  const [exclude, setExclude] = useState<Set<string>>(() => new Set())
-  const [current, setCurrent] = useState<CardRow | null>(() => pickNext(data.cards, data.concepts, data.states, new Date(), filter))
-  const [answered, setAnswered] = useState<{ verdict: Verdict; points: number } | null>(null)
+  // Cards shown this session in order; pos points at the one on screen. Lets the user step back and forth.
+  const [trail, setTrail] = useState<string[]>(() => {
+    const first = pickNext(data.cards, data.concepts, data.states, new Date(), filter)
+    return first ? [first.id] : []
+  })
+  const [pos, setPos] = useState(0)
+  const [results, setResults] = useState<Map<number, { verdict: Verdict; points: number }>>(() => new Map())
+  const [removed, setRemoved] = useState<Set<string>>(() => new Set())
   const [reporting, setReporting] = useState(false)
   const [reportNote, setReportNote] = useState('')
   const [showSource, setShowSource] = useState(false)
-  const [count, setCount] = useState(0)
+  // position answered during the current visit (card UI stays as the card left it); revisits show a summary
+  const [answeredHere, setAnsweredHere] = useState<number | null>(null)
   const narrow = typeof window !== 'undefined' && window.innerWidth < 600
   const conceptById = useMemo(() => new Map(data.concepts.map((k) => [k.id, k])), [data.concepts])
+  const cardById = useMemo(() => new Map(data.cards.map((c) => [c.id, c])), [data.cards])
 
-  function advance(nextStates = states, nextExclude = exclude) {
-    setAnswered(null)
+  const current: CardRow | null = trail[pos] !== undefined ? (cardById.get(trail[pos]) ?? null) : null
+  const answered = results.get(pos) ?? null
+  const count = results.size
+
+  function resetPanels() {
+    setAnsweredHere(null)
     setShowSource(false)
     setReporting(false)
     setReportNote('')
-    setCurrent(pickNext(data.cards, data.concepts, nextStates, new Date(), { ...filter, exclude: nextExclude }))
+  }
+
+  /** Forward: along the trail if we stepped back, otherwise a fresh card. */
+  function next(nextStates = states, nextRemoved = removed, nextTrail = trail, from = pos, nextResults = results) {
+    resetPanels()
+    if (from + 1 < nextTrail.length) {
+      setPos(from + 1)
+      return
+    }
+    // cards already on the trail and unanswered (skipped) are not picked again
+    const answeredIds = new Set([...nextResults.keys()].map((i) => nextTrail[i]))
+    const exclude = new Set([...nextRemoved, ...nextTrail.filter((id) => !answeredIds.has(id))])
+    const card = pickNext(data.cards, data.concepts, nextStates, new Date(), { ...filter, exclude })
+    if (card) {
+      setTrail([...nextTrail, card.id])
+      setPos(nextTrail.length)
+    } else {
+      setTrail(nextTrail)
+      setPos(nextTrail.length) // past the end: "no more cards"
+    }
+  }
+
+  function previous() {
+    resetPanels()
+    setPos((p) => Math.max(0, p - 1))
   }
 
   function answer(card: CardRow, verdict: Verdict, source: 'ai' | 'mc' | 'self') {
@@ -42,19 +77,11 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
     const points = pointsFor(verdict, card.type)
     const s = nextStreak({ streak: stats.streak, lastActive: stats.lastActive }, now)
     const newStats = { points: stats.points + points, streak: s.streak, lastActive: s.lastActive }
-    const newStates = new Map(states).set(card.id, state)
-    setStates(newStates)
+    setStates(new Map(states).set(card.id, state))
     setStats(newStats)
-    setAnswered({ verdict, points })
-    setCount((c) => c + 1)
+    setResults(new Map(results).set(pos, { verdict, points }))
+    setAnsweredHere(pos)
     void api.saveReview({ cardId: card.id, verdict, source, state, stats: newStats })
-  }
-
-  /** Skips the card for the rest of this session without grading it. */
-  function skip(card: CardRow) {
-    const ex = new Set(exclude).add(card.id)
-    setExclude(ex)
-    advance(states, ex)
   }
 
   async function report(card: CardRow) {
@@ -63,9 +90,13 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
     } catch {
       // the card is skipped locally even if the report could not be sent
     }
-    const ex = new Set(exclude).add(card.id)
-    setExclude(ex)
-    advance(states, ex)
+    const rem = new Set(removed).add(card.id)
+    setRemoved(rem)
+    // drop the reported card from the trail and continue from where it was
+    const t = trail.filter((_, i) => i !== pos)
+    const r = new Map([...results].filter(([i]) => i !== pos).map(([i, v]) => [i > pos ? i - 1 : i, v] as const))
+    setResults(r)
+    next(states, rem, t, pos - 1, r)
   }
 
   const header = (
@@ -90,6 +121,8 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
     )
   }
 
+  const justAnswered = answeredHere === pos
+  const revisit = answered !== null
   const concept = conceptById.get(current.concept_id)
   const rare = (concept?.exam_count ?? 0) <= 1
   const onAnswer = (v: Verdict, source: 'ai' | 'mc' | 'self') => answer(current, v, source)
@@ -108,8 +141,13 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
         <div style={{ fontSize: 18, fontWeight: 500 }}><MathText md={current.prompt_md} /></div>
       </section>
 
-      <div key={current.id}>
-        {current.type === 'find_error' ? (
+      <div key={`${pos}-${current.id}`}>
+        {revisit && !justAnswered ? (
+          <div className="stack">
+            <p className="muted">Redan besvarad i det här passet.</p>
+            <div className="panel"><span className="muted">Referenssvar</span><MathText md={current.reference_answer_md} /></div>
+          </div>
+        ) : current.type === 'find_error' ? (
           <FindErrorCard card={current} gradeOpen={api.gradeOpen} onAnswer={onAnswer} />
         ) : current.answer_mode === 'mc' ? (
           <McCard card={current} onAnswer={(v) => onAnswer(v, 'mc')} />
@@ -118,7 +156,7 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
         )}
       </div>
 
-      {answered && current.answer_mode === 'mc' && current.type !== 'find_error' && (
+      {answered && justAnswered && current.answer_mode === 'mc' && current.type !== 'find_error' && (
         <div className="panel"><span className="muted">Förklaring</span><MathText md={current.reference_answer_md} /></div>
       )}
       {answered && <ResultBox verdict={answered.verdict} points={answered.points} />}
@@ -143,8 +181,9 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
         <button className="btn ghost" onClick={() => setShowSource((v) => !v)}>Visa källa</button>
         <button className="btn ghost" onClick={() => setReporting(true)}>Rapportera fel</button>
         <span className="spacer" />
-        {!answered && <button className="btn" onClick={() => skip(current)}>Hoppa över</button>}
-        {answered && <button className="btn primary" onClick={() => advance()}>Nästa kort</button>}
+        {pos > 0 && <button className="btn" onClick={previous}>‹ Föregående</button>}
+        {!answered && <button className="btn" onClick={() => next()}>Hoppa över ›</button>}
+        {answered && <button className="btn primary" onClick={() => next()}>Nästa kort ›</button>}
       </div>
     </main>
   )
