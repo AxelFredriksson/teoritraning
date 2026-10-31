@@ -49,3 +49,9 @@ test('pickNext respects conceptId filter', () => {
   const cards = [card({ id: 'x', concept_id: 'common' }), card({ id: 'y', concept_id: 'rare' })]
   expect(pickNext(cards, concepts, new Map(), now, { conceptId: 'common' })?.id).toBe('x')
 })
+
+test('pickNext respects maxLevel', () => {
+  const cards = [card({ id: 'adv', concept_id: 'rare', level: 3 }), card({ id: 'base', concept_id: 'common', level: 1 })]
+  expect(pickNext(cards, concepts, new Map(), now, { maxLevel: 2 })?.id).toBe('base')
+  expect(pickNext([cards[0]], concepts, new Map(), now, { maxLevel: 1 })).toBeNull()
+})

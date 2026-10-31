@@ -1,23 +1,19 @@
 import { useMemo, useState } from 'react'
 import { FindErrorCard } from '../cards/FindErrorCard'
+import { TYPE_LABEL } from '../cards/labels'
 import { McCard } from '../cards/McCard'
 import { OpenCard } from '../cards/OpenCard'
 import { ResultBox } from '../cards/SelfGrade'
 import type { Api, CourseData, Stats } from '../data/api'
+import { LEVEL_LABEL } from '../game/levels'
 import { nextStreak, pointsFor } from '../game/points'
 import { MathInline, MathText } from '../math/MathText'
 import { pickNext, type PickFilter } from '../session/picker'
 import { schedule } from '../srs/scheduler'
-import type { CardRow, CardState, CardType, Verdict } from '../types'
+import type { CardRow, CardState, Verdict } from '../types'
 
 export type SessionApi = Pick<Api, 'saveReview' | 'reportCard' | 'gradeOpen'>
 
-const TYPE_LABEL: Record<CardType, string> = {
-  content: 'Innehåll',
-  conditions: 'Villkor',
-  recognition: 'Igenkänning',
-  find_error: 'Hitta felet',
-}
 
 export function Session({ data, filter, api, onExit }: { data: CourseData; filter: PickFilter; api: SessionApi; onExit: () => void }) {
   const [states, setStates] = useState<Map<string, CardState>>(() => new Map(data.states))
@@ -52,6 +48,13 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
     setAnswered({ verdict, points })
     setCount((c) => c + 1)
     void api.saveReview({ cardId: card.id, verdict, source, state, stats: newStats })
+  }
+
+  /** Skips the card for the rest of this session without grading it. */
+  function skip(card: CardRow) {
+    const ex = new Set(exclude).add(card.id)
+    setExclude(ex)
+    advance(states, ex)
   }
 
   async function report(card: CardRow) {
@@ -96,6 +99,7 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
       {header}
       <div className="row">
         <span className="tag">{TYPE_LABEL[current.type]}</span>
+        <span className="tag plain">{LEVEL_LABEL[current.level ?? 2]}</span>
         {rare && <span className="tag rare">Sällsynt · {concept?.exam_count ?? 0} tentor</span>}
         {concept && <span className="tag plain">F{concept.lecture}</span>}
       </div>
@@ -139,6 +143,7 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
         <button className="btn ghost" onClick={() => setShowSource((v) => !v)}>Visa källa</button>
         <button className="btn ghost" onClick={() => setReporting(true)}>Rapportera fel</button>
         <span className="spacer" />
+        {!answered && <button className="btn" onClick={() => skip(current)}>Hoppa över</button>}
         {answered && <button className="btn primary" onClick={() => advance()}>Nästa kort</button>}
       </div>
     </main>

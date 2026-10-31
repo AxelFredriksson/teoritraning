@@ -1,4 +1,7 @@
+import { useState } from 'react'
+import { TYPE_LABEL } from '../cards/labels'
 import type { CourseData } from '../data/api'
+import { LEVEL_LABEL } from '../game/levels'
 import { MathInline } from '../math/MathText'
 import type { PickFilter } from '../session/picker'
 import type { CardRow, CardState } from '../types'
@@ -30,6 +33,15 @@ export function Overview({ data, onBack, onPractice }: { data: CourseData; onBac
   rows.forEach((r) => totals[r.m]++)
   const pct = (n: number) => `${rows.length ? (100 * n) / rows.length : 0}%`
   const lectures = [...new Set(rows.map((r) => r.k.lecture))]
+  const [open, setOpen] = useState<Set<string>>(() => new Set())
+  const toggle = (id: string) =>
+    setOpen((o) => {
+      const n = new Set(o)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  const cardMastery = (c: CardRow): Mastery => (!data.states.has(c.id) ? 'new' : isStable(data.states.get(c.id)) ? 'mastered' : 'learning')
 
   return (
     <main className="screen">
@@ -52,14 +64,41 @@ export function Overview({ data, onBack, onPractice }: { data: CourseData; onBac
         <section key={l} className="stack">
           <h2 className="muted" style={{ fontSize: 14 }}>Föreläsning {l}</h2>
           {rows.filter((r) => r.k.lecture === l).map(({ k, cards, m }) => (
-            <button key={k.id} className="row-btn" style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }} onClick={() => onPractice({ conceptId: k.id })}>
-              <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 5, background: DOT[m], flex: '0 0 auto' }} />
-              <span className="stack" style={{ gap: 2, flex: '1 1 auto' }}>
-                <span className="row-title"><MathInline md={k.title} /></span>
-                <span className="muted">{LABEL[m]} · {cards.length} kort</span>
-              </span>
-              {k.exam_count <= 1 ? <span className="tag rare">Sällsynt</span> : <span className="mono muted">{k.exam_count} tentor</span>}
-            </button>
+            <div key={k.id} className="concept">
+              <button
+                className="row-btn"
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, width: '100%' }}
+                aria-expanded={open.has(k.id)}
+                aria-controls={`cards-${k.id}`}
+                onClick={() => toggle(k.id)}
+              >
+                <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: 5, background: DOT[m], flex: '0 0 auto' }} />
+                <span className="stack" style={{ gap: 2, flex: '1 1 auto' }}>
+                  <span className="row-title"><MathInline md={k.title} /></span>
+                  <span className="muted">{LABEL[m]} · {cards.length} kort</span>
+                </span>
+                {k.exam_count <= 1 ? <span className="tag rare">Sällsynt</span> : <span className="mono muted">{k.exam_count} tentor</span>}
+                <span aria-hidden="true" className="chevron">{open.has(k.id) ? '▾' : '▸'}</span>
+              </button>
+              {open.has(k.id) && (
+                <div className="concept-cards" id={`cards-${k.id}`}>
+                  <ul aria-label={`Kort i ${k.title}`}>
+                    {cards.map((c) => (
+                      <li key={c.id}>
+                        <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 4, background: DOT[cardMastery(c)], flex: '0 0 auto' }} />
+                        <span className="card-title">
+                          <MathInline md={c.title ?? c.prompt_md.slice(0, 80)} />
+                          {c.status !== 'active' && <span className="muted"> (avstängt)</span>}
+                        </span>
+                        <span className="tag">{TYPE_LABEL[c.type]}</span>
+                        <span className="tag plain">{LEVEL_LABEL[c.level ?? 2]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <button className="btn" onClick={() => onPractice({ conceptId: k.id })}>Öva på det här begreppet</button>
+                </div>
+              )}
+            </div>
           ))}
         </section>
       ))}

@@ -35,10 +35,20 @@ test('conceptMastery classifies new, learning and mastered', () => {
   expect(conceptMastery(d.cards.filter((c) => c.concept_id === 'done'), new Map([['d1', stable], ['d2', learning]]))).toBe('learning')
 })
 
-test('tapping a concept starts practice filtered to it', async () => {
+test('expanding a concept lists its cards with title and type, and can start practice', async () => {
   const onPractice = vi.fn()
-  render(<Overview data={data()} onBack={() => {}} onPractice={onPractice} />)
-  await userEvent.click(screen.getByRole('button', { name: /Startvärdessatsen/ }))
+  const d = data()
+  d.cards[0] = { ...d.cards[0], title: 'Formulera startvärdessatsen', type: 'content', level: 1 }
+  render(<Overview data={d} onBack={() => {}} onPractice={onPractice} />)
+  const row = screen.getByRole('button', { name: /Startvärdessatsen/ })
+  expect(row).toHaveAttribute('aria-expanded', 'false')
+  await userEvent.click(row)
+  expect(row).toHaveAttribute('aria-expanded', 'true')
+  const list = screen.getByRole('list', { name: /Kort i Startvärdessatsen/ })
+  expect(within(list).getByText('Formulera startvärdessatsen')).toBeInTheDocument()
+  expect(within(list).getByText('Innehåll')).toBeInTheDocument()
+  expect(within(list).getByText('Grund')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Öva på det här begreppet' }))
   expect(onPractice).toHaveBeenCalledWith({ conceptId: 'rare' })
 })
 

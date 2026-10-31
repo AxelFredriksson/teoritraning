@@ -84,3 +84,15 @@ textarea { min-height: 140px; resize: vertical; }
 .math-text, .math-inline { line-height: 1.75; }
 .math-text .katex, .math-inline .katex { font-size: 1.05em; }
 .feedback ul { margin: .25em 0 0; padding-left: 1.2em; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+label.chip { display: inline-flex; align-items: center; font-size: 15px; font-weight: 500; color: var(--ink); }
+label.chip:has(:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.concept { display: flex; flex-direction: column; }
+.chevron { color: var(--muted); width: 16px; text-align: center; }
+.concept-cards {
+  margin: 6px 0 6px 22px; padding: 10px 14px; border-left: 2px solid var(--line);
+  display: flex; flex-direction: column; gap: 10px; align-items: flex-start;
+}
+.concept-cards ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.concept-cards li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.concept-cards .card-title { flex: 1 1 220px; font-size: 15px; }

@@ -30,7 +30,12 @@ export interface CardRow {
   exam_ref: string | null
   status: 'active' | 'flagged' | 'rejected'
   verify_note: string | null
+  title: string | null
+  level: Level
 }
+
+/** 1 Grund, 2 Fördjupning, 3 Avancerat */
+export type Level = 1 | 2 | 3
 
 /** Serialised ts-fsrs card plus its due time (ISO). */
 export interface CardState {

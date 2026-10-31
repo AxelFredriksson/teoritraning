@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import type { CourseData } from '../data/api'
+import { LEVEL_SCOPES, readMaxLevel, saveMaxLevel } from '../game/levels'
 import type { PickFilter } from '../session/picker'
 
 export function Home({
@@ -18,8 +20,9 @@ export function Home({
   onAdmin: () => void
   onSwitchCourse: () => void
 }) {
+  const [maxLevel, setMaxLevel] = useState(readMaxLevel)
   const now = new Date()
-  const active = data.cards.filter((c) => c.status === 'active')
+  const active = data.cards.filter((c) => c.status === 'active' && (c.level ?? 2) <= maxLevel)
   const due = active.filter((c) => data.states.has(c.id) && new Date(data.states.get(c.id)!.due) <= now).length
   const unseen = active.filter((c) => !data.states.has(c.id))
   const conceptById = new Map(data.concepts.map((k) => [k.id, k]))
@@ -52,15 +55,37 @@ export function Home({
         <span className="muted">Dags att repetera</span>
         <span style={{ fontSize: 22, fontWeight: 600 }}>{due} kort väntar · {unseen.length} nya</span>
         {rareUnseen > 0 && <span className="muted">Varav {rareUnseen} sällsynta begrepp du inte sett</span>}
-        <button className="btn primary" onClick={() => onStart({})}>Fortsätt öva</button>
+        <button className="btn primary" onClick={() => onStart({ maxLevel })}>Fortsätt öva</button>
+      </section>
+
+      <section className="stack">
+        <h2 className="muted" style={{ fontSize: 14 }}>Nivå</h2>
+        <div className="row" role="radiogroup" aria-label="Nivå">
+          {LEVEL_SCOPES.map((s) => (
+            <label key={s.max} className={maxLevel === s.max ? 'chip on' : 'chip'} title={s.hint}>
+              <input
+                type="radio"
+                name="level"
+                className="sr-only"
+                checked={maxLevel === s.max}
+                onChange={() => {
+                  setMaxLevel(s.max)
+                  saveMaxLevel(s.max)
+                }}
+              />
+              {s.label}
+            </label>
+          ))}
+        </div>
+        <span className="muted">{LEVEL_SCOPES.find((s) => s.max === maxLevel)?.hint}</span>
       </section>
 
       <section className="stack">
         <h2 className="muted" style={{ fontSize: 14 }}>Fokusera</h2>
         <div className="row">
-          <button className="chip" onClick={() => onStart({ unseenOnly: true })}>Aldrig sedda</button>
+          <button className="chip" onClick={() => onStart({ unseenOnly: true, maxLevel })}>Aldrig sedda</button>
           {lectures.map((l) => (
-            <button key={l} className="chip" onClick={() => onStart({ lecture: l })}>F{l}</button>
+            <button key={l} className="chip" onClick={() => onStart({ lecture: l, maxLevel })}>F{l}</button>
           ))}
         </div>
       </section>

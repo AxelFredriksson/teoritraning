@@ -136,3 +136,12 @@ test('ai feedback and missing points render math', async () => {
   await screen.findByText(/Saknar/)
   expect(container.querySelectorAll('.feedback .katex').length).toBeGreaterThanOrEqual(2)
 })
+
+test('skip moves to the next card without saving a review', async () => {
+  const api = fakeApi()
+  render(<Session data={data([open, mc])} filter={{}} api={api} onExit={() => {}} />)
+  const first = screen.getByRole('heading', { level: 2 }).textContent
+  await userEvent.click(screen.getByRole('button', { name: 'Hoppa över' }))
+  expect(screen.getByRole('heading', { level: 2 }).textContent).not.toBe(first)
+  expect(api.saveReview).not.toHaveBeenCalled()
+})

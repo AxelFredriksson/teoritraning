@@ -5,6 +5,8 @@ export interface PickFilter {
   conceptId?: string
   unseenOnly?: boolean
   exclude?: Set<string>
+  /** Only cards at or below this level (1 Grund … 3 Avancerat). */
+  maxLevel?: number
 }
 
 export function pickNext(
@@ -18,6 +20,7 @@ export function pickNext(
   const pool = cards.filter((c) => {
     if (c.status !== 'active' || filter.exclude?.has(c.id)) return false
     if (filter.conceptId && c.concept_id !== filter.conceptId) return false
+    if (filter.maxLevel !== undefined && (c.level ?? 2) > filter.maxLevel) return false
     if (filter.lecture !== undefined && byId.get(c.concept_id)?.lecture !== filter.lecture) return false
     return true
   })
