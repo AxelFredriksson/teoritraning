@@ -67,7 +67,7 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
 
   const header = (
     <div className="row">
-      <button className="btn" onClick={onExit}>Avsluta</button>
+      <button className="btn" onClick={onExit}>‹ Avsluta</button>
       <span className="spacer" />
       <span className="mono streak">{stats.streak} dgr</span>
       <span className="mono points">{stats.points} p</span>

@@ -34,7 +34,7 @@ export function Overview({ data, onBack, onPractice }: { data: CourseData; onBac
   return (
     <main className="screen">
       <div className="row">
-        <button className="btn" onClick={onBack} aria-label="Tillbaka">Tillbaka</button>
+        <button className="btn" onClick={onBack} >‹ Tillbaka</button>
         <h1>Översikt</h1>
       </div>
       <div className="panel stack" style={{ padding: 16 }}>

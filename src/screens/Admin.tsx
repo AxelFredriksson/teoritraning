@@ -95,7 +95,7 @@ export function Admin({ api, onBack }: { api: AdminApi; onBack: () => void }) {
   return (
     <main className="screen">
       <div className="row">
-        <button className="btn" onClick={onBack}>Tillbaka</button>
+        <button className="btn" onClick={onBack}>‹ Tillbaka</button>
         <h1>Admin</h1>
       </div>
       {error && <p role="alert" className="alert">{error}</p>}

@@ -6,7 +6,7 @@ interface Course {
   archived: boolean
 }
 
-export function CourseSelect({ listCourses, onPick }: { listCourses: () => Promise<Course[]>; onPick: (id: string) => void }) {
+export function CourseSelect({ listCourses, onPick, onBack }: { listCourses: () => Promise<Course[]>; onPick: (id: string) => void; onBack?: () => void }) {
   const [courses, setCourses] = useState<Course[] | null>(null)
   const [showArchived, setShowArchived] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -19,7 +19,10 @@ export function CourseSelect({ listCourses, onPick }: { listCourses: () => Promi
 
   return (
     <main className="screen">
-      <h1>Välj kurs</h1>
+      <div className="row">
+        {onBack && <button className="btn" onClick={onBack}>‹ Tillbaka</button>}
+        <h1>Välj kurs</h1>
+      </div>
       {error && <p role="alert" className="alert">{error}</p>}
       {!courses && !error && <p className="muted">Laddar…</p>}
       <div className="stack">

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createAdminApi } from './data/adminApi'
 import { createApi, type CourseData } from './data/api'
+import { useNavigation } from './lib/navigation'
 import { loginAuth, supabase } from './lib/supabase'
 import { Admin } from './screens/Admin'
 import { CourseSelect } from './screens/CourseSelect'
@@ -30,7 +31,8 @@ export default function App() {
   const [courseId, setCourseId] = useState<string | null>(readLastCourse)
   const [data, setData] = useState<CourseData | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [screen, setScreen] = useState<Screen>(courseId ? { name: 'home' } : { name: 'courses' })
+  const nav = useNavigation<Screen>(courseId ? { name: 'home' } : { name: 'courses' })
+  const { screen } = nav
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session))
@@ -54,6 +56,11 @@ export default function App() {
     api.isAdmin().then(setIsAdmin)
   }, [signedIn, api, reload])
 
+  // returning to a list view picks up reviews saved in a session or edits made in admin
+  useEffect(() => {
+    if (signedIn && (screen.name === 'home' || screen.name === 'overview')) reload()
+  }, [screen, signedIn, reload])
+
   const listCourses = useCallback(() => api.listCourses(), [api])
 
   if (signedIn === null) return <main className="screen"><p className="muted">Laddar…</p></main>
@@ -63,11 +70,12 @@ export default function App() {
     return (
       <CourseSelect
         listCourses={listCourses}
+        onBack={nav.canGoBack && courseId ? nav.back : undefined}
         onPick={(id) => {
           try { localStorage.setItem(COURSE_KEY, id) } catch { /* ignore */ }
           setData(null)
           setCourseId(id)
-          setScreen({ name: 'home' })
+          nav.reset({ name: 'home' })
         }}
       />
     )
@@ -89,20 +97,17 @@ export default function App() {
         data={data}
         filter={screen.filter}
         api={api}
-        onExit={() => {
-          setScreen({ name: 'home' })
-          reload()
-        }}
+        onExit={nav.back}
       />
     )
   }
 
   if (screen.name === 'admin' && isAdmin) {
-    return <Admin api={adminApi} onBack={() => { setScreen({ name: 'home' }); reload() }} />
+    return <Admin api={adminApi} onBack={nav.back} />
   }
 
   if (screen.name === 'overview') {
-    return <Overview data={data} onBack={() => setScreen({ name: 'home' })} onPractice={(filter) => setScreen({ name: 'session', filter })} />
+    return <Overview data={data} onBack={nav.back} onPractice={(filter) => nav.navigate({ name: 'session', filter })} />
   }
 
   return (
@@ -110,10 +115,10 @@ export default function App() {
       courseId={courseId}
       data={data}
       isAdmin={isAdmin}
-      onStart={(filter) => setScreen({ name: 'session', filter })}
-      onOverview={() => setScreen({ name: 'overview' })}
-      onAdmin={() => setScreen({ name: 'admin' })}
-      onSwitchCourse={() => setScreen({ name: 'courses' })}
+      onStart={(filter) => nav.navigate({ name: 'session', filter })}
+      onOverview={() => nav.navigate({ name: 'overview' })}
+      onAdmin={() => nav.navigate({ name: 'admin' })}
+      onSwitchCourse={() => nav.navigate({ name: 'courses' })}
     />
   )
 }
