@@ -18,7 +18,11 @@ function fakeClient(opts: { upsertError?: boolean; failFirst?: number; invoke?: 
     }
   }
   const functions = { invoke: opts.invoke ?? (async () => ({ data: null, error: null })) }
-  return { client: { from, functions, auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) } }, calls }
+  const rpc = async (fn: string, args: unknown) => {
+    calls.push({ table: 'rpc:' + fn, op: 'rpc', payload: args })
+    return { data: null, error: null }
+  }
+  return { client: { from, functions, rpc, auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) } }, calls }
 }
 
 const review = {
@@ -98,4 +102,13 @@ test('a review queued during a failing flush is kept', async () => {
   await Promise.all([api.flushPending(), api.saveReview({ ...review, cardId: 'late' })])
   const ids = JSON.parse(localStorage.getItem('pendingReviews')!).map((r: { cardId: string }) => r.cardId)
   expect(ids).toEqual(['c1', 'late'])
+})
+
+test('resetCourse calls the reset rpc and drops queued reviews for that course', async () => {
+  localStorage.setItem('pendingReviews', JSON.stringify([{ ...review, cardId: 'in-course' }, { ...review, cardId: 'other' }]))
+  const { client, calls } = fakeClient({ upsertError: true })
+  await createApi(client as never).resetCourse('TATA77', ['in-course'])
+  expect(calls).toContainEqual(expect.objectContaining({ table: 'rpc:reset_course_progress', payload: { p_course: 'TATA77' } }))
+  const left = JSON.parse(localStorage.getItem('pendingReviews')!).map((r: { cardId: string }) => r.cardId)
+  expect(left).toEqual(['other'])
 })

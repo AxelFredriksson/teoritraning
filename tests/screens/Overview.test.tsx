@@ -58,3 +58,22 @@ test('overview renders math in concept titles', () => {
   const { container } = render(<Overview data={d} onBack={() => {}} onPractice={() => {}} />)
   expect(container.querySelector('.row-title .katex')).not.toBeNull()
 })
+
+test('reset progress needs a confirmation step', async () => {
+  const onReset = vi.fn(async () => {})
+  render(<Overview data={data()} onBack={() => {}} onPractice={() => {}} onReset={onReset} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Återställ framsteg' }))
+  expect(onReset).not.toHaveBeenCalled()
+  expect(screen.getByText(/går inte att ångra/)).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Ja, återställ' }))
+  expect(onReset).toHaveBeenCalledTimes(1)
+})
+
+test('reset can be cancelled', async () => {
+  const onReset = vi.fn(async () => {})
+  render(<Overview data={data()} onBack={() => {}} onPractice={() => {}} onReset={onReset} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Återställ framsteg' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Avbryt' }))
+  expect(screen.queryByRole('button', { name: 'Ja, återställ' })).toBeNull()
+  expect(onReset).not.toHaveBeenCalled()
+})

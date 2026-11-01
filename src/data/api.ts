@@ -125,6 +125,14 @@ export function createApi(client: Supa) {
       return data
     },
 
+    /** Wipes this user's repetition state and answer history for one course (points and streak are kept). */
+    async resetCourse(courseId: string, cardIds: string[]): Promise<void> {
+      const inCourse = new Set(cardIds)
+      writePending(readPending().filter((r) => !inCourse.has(r.cardId)))
+      const { error } = await client.rpc('reset_course_progress', { p_course: courseId })
+      if (error) throw new Error(error.message)
+    },
+
     async reportCard(cardId: string, note: string): Promise<void> {
       const uid = await userId()
       const { error } = await client.from('card_reports').insert({ user_id: uid, card_id: cardId, note })

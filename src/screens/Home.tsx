@@ -11,6 +11,7 @@ export function Home({
   onOverview,
   onAdmin,
   onSwitchCourse,
+  onSignOut,
 }: {
   courseId: string
   data: CourseData
@@ -19,6 +20,7 @@ export function Home({
   onOverview: () => void
   onAdmin: () => void
   onSwitchCourse: () => void
+  onSignOut: () => void
 }) {
   const [maxLevel, setMaxLevel] = useState(readMaxLevel)
   const now = new Date()
@@ -95,7 +97,11 @@ export function Home({
         <span className="row-title">Kursöversikt</span>
         <span className="muted">{data.concepts.length} begrepp · {active.length} kort</span>
       </button>
-      {isAdmin && <button className="btn ghost" onClick={onAdmin}>Admin</button>}
+      <div className="row">
+        {isAdmin && <button className="btn ghost" onClick={onAdmin}>Admin</button>}
+        <span className="spacer" />
+        <button className="btn ghost" onClick={onSignOut}>Logga ut</button>
+      </div>
     </main>
   )
 }

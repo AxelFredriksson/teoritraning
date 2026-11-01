@@ -107,7 +107,17 @@ export default function App() {
   }
 
   if (screen.name === 'overview') {
-    return <Overview data={data} onBack={nav.back} onPractice={(filter) => nav.navigate({ name: 'session', filter })} />
+    return (
+      <Overview
+        data={data}
+        onBack={nav.back}
+        onPractice={(filter) => nav.navigate({ name: 'session', filter })}
+        onReset={async () => {
+          await api.resetCourse(courseId, data.cards.map((c) => c.id))
+          await reload()
+        }}
+      />
+    )
   }
 
   return (
@@ -119,6 +129,12 @@ export default function App() {
       onOverview={() => nav.navigate({ name: 'overview' })}
       onAdmin={() => nav.navigate({ name: 'admin' })}
       onSwitchCourse={() => nav.navigate({ name: 'courses' })}
+      onSignOut={async () => {
+        await supabase.auth.signOut()
+        setData(null)
+        setIsAdmin(false)
+        nav.reset({ name: 'home' })
+      }}
     />
   )
 }

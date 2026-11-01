@@ -12,7 +12,7 @@ const d = (): CourseData => ({
   stats: { points: 0, streak: 0, lastActive: null },
 })
 
-const props = { courseId: 'TATA77', isAdmin: false, onOverview: vi.fn(), onAdmin: vi.fn(), onSwitchCourse: vi.fn() }
+const props = { courseId: 'TATA77', isAdmin: false, onOverview: vi.fn(), onAdmin: vi.fn(), onSwitchCourse: vi.fn(), onSignOut: vi.fn() }
 
 beforeEach(() => localStorage.clear())
 
@@ -34,4 +34,11 @@ test('default level is all cards', async () => {
   expect(screen.getByRole('radio', { name: 'Allt' })).toBeChecked()
   await userEvent.click(screen.getByRole('button', { name: 'Fortsätt öva' }))
   expect(onStart).toHaveBeenCalledWith({ maxLevel: 3 })
+})
+
+test('sign out button calls onSignOut', async () => {
+  const onSignOut = vi.fn()
+  render(<Home {...props} onSignOut={onSignOut} data={d()} onStart={vi.fn()} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Logga ut' }))
+  expect(onSignOut).toHaveBeenCalledTimes(1)
 })
