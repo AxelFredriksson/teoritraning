@@ -30,3 +30,6 @@ dist-ssr
 .superpowers
 
 bank/src/
+
+.vercel
+.env*

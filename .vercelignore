@@ -1,0 +1,10 @@
+bank
+docs
+tests
+supabase
+scripts
+.superpowers
+.env
+.env.*
+node_modules
+dist
