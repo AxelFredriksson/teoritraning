@@ -46,3 +46,16 @@ test('cost section sums this month only', () => {
   ]
   expect(sumThisMonth(rows, now)).toBeCloseTo(3.5)
 })
+
+test('flagged calc card shows facit and solution steps', async () => {
+  const api = fakeAdmin({
+    listFlagged: vi.fn(async () => [{
+      ...card({ id: 'f2', type: 'calc', answer_mode: 'numeric', answer_value: 3.52, answer_tolerance: 0.01, answer_unit: '%', steps: ['Räkna ut ränta', 'Dela med kapital'], status: 'flagged' }),
+      reports: [],
+    }]),
+  })
+  render(<Admin api={api} onBack={() => {}} />)
+  expect(await screen.findByText(/Facit: 3,52 %/)).toBeInTheDocument()
+  expect(screen.getByText(/Räkna ut ränta/)).toBeInTheDocument()
+  expect(screen.getByText(/Dela med kapital/)).toBeInTheDocument()
+})

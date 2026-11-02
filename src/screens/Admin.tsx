@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { formatNumber } from '../cards/numeric'
 import { stockholmDate } from '../game/points'
 import { MathText } from '../math/MathText'
 import type { CardRow } from '../types'
@@ -54,6 +55,12 @@ function FlaggedItem({ card, api, onDone }: { card: FlaggedCard; api: AdminApi; 
       ) : (
         <>
           <MathText md={card.prompt_md} />
+          {card.type === 'calc' && card.answer_value !== null && (
+            <div className="panel stack">
+              <strong>Facit: {formatNumber(card.answer_value)} {card.answer_unit ?? ''}</strong>
+              {card.steps && <ol>{card.steps.map((s, i) => <li key={i}><MathText md={s} /></li>)}</ol>}
+            </div>
+          )}
           <div className="panel"><span className="muted">Referenssvar</span><MathText md={card.reference_answer_md} /></div>
           <div className="row">
             <button className="btn" onClick={async () => { await api.setCardStatus(card.id, 'active'); onDone() }}>Godkänn</button>

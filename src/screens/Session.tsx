@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { CalcCard } from '../cards/CalcCard'
 import { FindErrorCard } from '../cards/FindErrorCard'
 import { TYPE_LABEL } from '../cards/labels'
 import { McCard } from '../cards/McCard'
@@ -147,6 +148,8 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
             <p className="muted">Redan besvarad i det här passet.</p>
             <div className="panel"><span className="muted">Referenssvar</span><MathText md={current.reference_answer_md} /></div>
           </div>
+        ) : current.type === 'calc' ? (
+          <CalcCard card={current} narrow={narrow} gradeOpen={api.gradeOpen} onAnswer={onAnswer} />
         ) : current.type === 'find_error' ? (
           <FindErrorCard card={current} gradeOpen={api.gradeOpen} onAnswer={onAnswer} />
         ) : current.answer_mode === 'mc' ? (
@@ -156,7 +159,7 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
         )}
       </div>
 
-      {answered && justAnswered && current.answer_mode === 'mc' && current.type !== 'find_error' && (
+      {answered && justAnswered && current.answer_mode === 'mc' && current.type !== 'find_error' && current.type !== 'calc' && (
         <div className="panel"><span className="muted">Förklaring</span><MathText md={current.reference_answer_md} /></div>
       )}
       {answered && <ResultBox verdict={answered.verdict} points={answered.points} />}

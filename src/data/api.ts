@@ -158,9 +158,9 @@ export function createApi(client: Supa) {
       return !!data?.is_admin
     },
 
-    async gradeOpen(cardId: string, input: { text?: string; imageBase64?: string }): Promise<GradeResult> {
+    async gradeOpen(cardId: string, input: { text?: string; imageBase64?: string; mode?: 'find_calc_error' }): Promise<GradeResult> {
       const { data, error } = await client.functions.invoke('grade', {
-        body: { card_id: cardId, text: input.text, image_base64: input.imageBase64 },
+        body: { card_id: cardId, text: input.text, image_base64: input.imageBase64, mode: input.mode },
         timeout: GRADE_TIMEOUT_MS,
       })
       if (error) throw error
