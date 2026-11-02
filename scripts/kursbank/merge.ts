@@ -14,7 +14,7 @@ export function checkCalc(card: Card): { ok: true } | { ok: false; note: string 
   const { value, tolerance, check } = card.answer
   let got: unknown
   try {
-    got = runInNewContext(check, { Math }, { timeout: 100 })
+    got = runInNewContext(check, {}, { timeout: 100 })
   } catch (e) {
     return { ok: false, note: `Kontrolluttrycket kunde inte beräknas: ${e instanceof Error ? e.message : String(e)}` }
   }

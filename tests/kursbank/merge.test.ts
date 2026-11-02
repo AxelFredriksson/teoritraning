@@ -69,3 +69,9 @@ test('mergeCourse rejects duplicate ids across parts', () => {
   const parts = [[concept('k1', [content('a')])], [concept('k2', [content('a')])]]
   expect(() => mergeCourse({ course, parts, verdicts: pass('a'), publishedIds: [] })).toThrow(/duplicate id: a/)
 })
+
+test('checkCalc does not expose the host realm (no process via Math.constructor.constructor)', () => {
+  const r = checkCalc(calc('c', 1, "Math.constructor.constructor('return typeof process')()"))
+  expect(r.ok).toBe(false)
+  if (!r.ok) expect(r.note).not.toContain('object')
+})
