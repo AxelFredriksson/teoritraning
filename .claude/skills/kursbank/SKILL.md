@@ -12,6 +12,7 @@ All card content is written in **Swedish**. These instructions are in English be
 ## Setup
 
 - `<KURS>` is the argument, e.g. `TPPE29`. `<kurs>` is its lower-case form. The workspace is `bank/<kurs>/`. Run every command from the repo root.
+- Run every shell command and one-liner in this skill with the **Bash** tool (Git Bash), never PowerShell. PowerShell 5.1 mangles the quotes embedded in the `node -e` one-liners.
 - If `bank/<kurs>/course.json` is missing, **stop**. Tell Axel to create it, and do not write it yourself. It needs `id` (e.g. `"TPPE29"`), `name`, `sourceDir` (the course folder under `<kursmapp>\`), `lectures: [{ "n": 1, "title": "…" }, …]` and `sources: [{ "glob": "…", "trust": "trusted" | "helper" }]`, with globs relative to `sourceDir`. See `bank/tppe29/course.json` for an example.
 - Never touch `bank/tata77.json` or `bank/parts|verify|meta|sql|src`. Never print `.env.kursbank`.
 - Never write to the database directly: no `execute_sql` writes, no SQL Editor. `upload.ts` is the only way cards reach Supabase, because it is what enforces Axel's review decisions.
@@ -61,7 +62,7 @@ Trust comes from `course.json` `sources[].trust`. For TPPE29 the trusted sources
 
 You do this yourself, before dispatching anything. For each affected lecture, write a concept plan to `extract/work/plan-LNN.md`.
 
-- **Base the concepts on faktakunskaper** (`extract/faktakunskaper.tsv`): one header row, then data rows with the columns nr, förkunskap, Föreläsning, Nyckelord, Definition (TPPE29 has 413 rows). Use **every** row, including the prerequisite rows marked `TPPE17` or `Gymnasiet`, which become level 1. Neighbouring rows may merge into one concept. `factRefs` lists the row numbers (column nr) that a concept covers. The Föreläsning column (e.g. `Fö4`) gives the concept's lecture.
+- **Base the concepts on faktakunskaper** (`extract/faktakunskaper.tsv`): one header row, then data rows with the columns nr, förkunskap, Föreläsning, Nyckelord, Definition (TPPE29 has 413 rows). Column 1 has no header name, but it holds nr, the row number used in `factRefs`. Column 2 (förkunskap) is unnamed too. Use **every** row, including the prerequisite rows marked `TPPE17` or `Gymnasiet`, which become level 1. Neighbouring rows may merge into one concept. `factRefs` lists the row numbers (column nr) that a concept covers. The Föreläsning column (e.g. `Fö4`) gives the concept's lecture.
 - Lectures and exams may add concepts the list lacks.
 - **Exam frequency:** scan every exam **and its solution** (`extract/<KURS>_<date>/…_EXAM.pdf.txt` and `…_SOLUTION.pdf.txt`). For each concept, `examRefs` lists the exam tasks whose solution uses it, in the form `"2025-01-17 #2b"`, and `examCount` is the number of distinct exams. Note which exam tasks are good material for context, calc and reasoning cards, and attach them to the concept in the plan.
 - **On later runs,** match new material against the existing concepts by `factRefs` and title **before** creating a concept. Extend an existing concept (adding cards or factRefs) instead of duplicating it.
@@ -74,9 +75,9 @@ node -e 'const fs=require("fs"),d=process.argv[1];const tsv=fs.readdirSync(d+"/e
 
 ### 3. Generate: one subagent per lecture
 
-First, snapshot every part you are about to regenerate: copy `parts/LNN.json` to `extract/work/prev-LNN.json`, or note that it does not exist yet.
+The committed parts are the baseline. A part is committed only after a run has verified, uploaded and finished, so `git show HEAD:bank/<kurs>/parts/LNN.json` is always verified content. Never use a copy of the working tree as the baseline: if an earlier run was interrupted after generating but before verifying, its unverified edits would look unchanged and inherit old PASS verdicts.
 
-If a lecture's only change is in exam frequency or `factRefs`, you may update those concept fields in its part yourself. They are not card content, so they need no verification. Every change to a card goes through a generator.
+You may edit only `examCount`, `examRefs` and `factRefs` on a concept yourself, e.g. when a new exam changes the frequency. They need no verification. Every other change goes through generate → verify. That includes any change to a card, and any change to a concept's `title`, `statementMd`, `sourceRef` or `kind`.
 
 Then dispatch **one generator subagent per affected lecture**. Lectures are independent, so dispatch them in parallel. Give each one:
 
@@ -86,14 +87,18 @@ Then dispatch **one generator subagent per affected lecture**. Lectures are inde
 - the rule: "Keep every existing concept id and card id in this part. Never renumber, never delete. To retire a card, keep it and set `status: \"retired\"`. Write the file as UTF-8 JSON with LF line endings."
 - in a flagged-only run, the flagged card ids with their verify notes, and the rule that it may change only those cards
 
-When the generators are done, diff each part against its snapshot:
+When the generators are done, diff **every** part file (not only the ones regenerated now) against `HEAD`. This also catches leftovers from an interrupted run:
 
 ```bash
-node -e 'const fs=require("fs"),[a,b]=process.argv.slice(1);const load=f=>fs.existsSync(f)?JSON.parse(fs.readFileSync(f,"utf8")).concepts:[];const norm=v=>Array.isArray(v)?v.map(norm):v&&typeof v==="object"?Object.fromEntries(Object.keys(v).sort().filter(k=>k!=="status"&&k!=="verifyNote").map(k=>[k,norm(v[k])])):v;const ids=cs=>new Map(cs.flatMap(k=>[[k.id,null],...k.cards.map(c=>[c.id,JSON.stringify(norm(c))])]));const p=ids(load(a)),n=ids(load(b));const out={missing:[...p.keys()].filter(i=>!n.has(i)),added:[...n.keys()].filter(i=>!p.has(i)&&n.get(i)!==null),changed:[...n.keys()].filter(i=>p.has(i)&&n.get(i)!==null&&p.get(i)!==n.get(i))};console.log(JSON.stringify(out,null,1))' bank/<kurs>/extract/work/prev-LNN.json bank/<kurs>/parts/LNN.json
+node -e 'const fs=require("fs"),cp=require("child_process"),d=process.argv[1];const pd=d+"/parts";const head=f=>{try{return JSON.parse(cp.execFileSync("git",["show","HEAD:"+pd+"/"+f],{encoding:"utf8",stdio:["ignore","pipe","ignore"]})).concepts}catch{return[]}};const norm=v=>Array.isArray(v)?v.map(norm):v&&typeof v==="object"?Object.fromEntries(Object.keys(v).sort().filter(k=>k!=="status"&&k!=="verifyNote").map(k=>[k,norm(v[k])])):v;const cardMap=cs=>new Map(cs.flatMap(k=>k.cards.map(c=>[c.id,JSON.stringify(norm(c))])));const kMap=cs=>new Map(cs.map(k=>[k.id,JSON.stringify([k.kind,k.title,k.statementMd,k.sourceRef])]));for(const f of fs.existsSync(pd)?fs.readdirSync(pd).filter(f=>f.endsWith(".json")).sort():[]){const P=head(f),Nw=JSON.parse(fs.readFileSync(pd+"/"+f,"utf8")).concepts;const pc=cardMap(P),nc=cardMap(Nw),pk=kMap(P),nk=kMap(Nw);const missing=[...pk.keys(),...pc.keys()].filter(i=>!nk.has(i)&&!nc.has(i));const added=[...nc.keys()].filter(i=>!pc.has(i));const changed=[...nc.keys()].filter(i=>pc.has(i)&&pc.get(i)!==nc.get(i));const changedConcepts=[...nk.keys()].filter(i=>pk.has(i)&&pk.get(i)!==nk.get(i));const verify=[...new Set([...added,...changed,...Nw.filter(k=>changedConcepts.includes(k.id)).flatMap(k=>k.cards.map(c=>c.id))])].filter(i=>Nw.flatMap(k=>k.cards).find(c=>c.id===i).status!=="retired");console.log(f+" "+JSON.stringify({missing,added,changed,changedConcepts,verify}))}' bank/<kurs>
 ```
 
-- If `missing` is non-empty, the generator dropped ids. Send it back to restore them; do not continue with that part until `missing` is empty.
-- `added` + `changed` is that lecture's list of cards to verify.
+For each `LNN.json` it prints:
+
+- `missing`: concept or card ids that are in HEAD but gone from the part. If this is non-empty, the generator dropped ids. Send it back to restore them, and do not continue with that part until `missing` is empty.
+- `added`: new cards. `changed`: cards whose content changed (status and verifyNote are ignored).
+- `changedConcepts`: concepts whose `kind`, `title`, `statementMd` or `sourceRef` changed. `statementMd` is uploaded and shown in the app, and it has no flag of its own, so **every card of such a concept** must be verified again.
+- `verify`: the union of the above, minus retired cards. This is that lecture's list of cards to verify.
 
 ### 4. Verify: one fresh subagent per lecture
 
@@ -105,9 +110,9 @@ For each lecture with cards to verify, dispatch a **new** subagent: never the ge
 
 What to verify:
 
-- every new or changed card
+- every card on the diff's `verify` list (new cards, changed cards, and every card of a changed concept)
 - the **flagged** cards of that lecture, when a new trusted source that could support them has been added (e.g. a lecture PDF that was missing before)
-- nothing else. A card that is unchanged and already verified keeps its old verdict.
+- nothing else. A card that is unchanged since HEAD, and whose concept is unchanged, keeps its old verdict.
 
 The verifier returns JSON verdicts. **You** merge them into `verify/LNN.json`: replace the entries for the checked ids and keep every other entry exactly as it was. A card without a verdict is flagged "Ej kontrollerad" by `merge.ts`, so never drop verdicts for unchanged cards.
 
@@ -130,7 +135,9 @@ This validates every part against the schema, rejects duplicate ids, applies the
 npx tsx scripts/kursbank/upload.ts bank/<kurs> --dry-run
 ```
 
-Print the merge summary and the dry-run plan (`inserted`, `updated`, `requeued`, `released`, `skipped`, `untouchedMissingLocally`) to Axel, and save both to `bank/<kurs>/runs/<YYYY-MM-DD>.md`, using today's date. If that file already exists, append a new section. Also include:
+The dry run already needs `.env.kursbank`. If the file is missing, stop and ask Axel to create it from `.env.kursbank.example`.
+
+Print the merge summary and the dry-run JSON (the upload plan) to Axel, and save both to `bank/<kurs>/runs/<YYYY-MM-DD>.md`, using today's date. If that file already exists, append a new section. Also include:
 
 - the source diff from step 1, including any `removed` files
 - the faktakunskaper coverage result, with every deliberately excluded row and its reason
@@ -144,7 +151,7 @@ Run the uploader exactly in this form, as a standalone command: no `cd … &&`, 
 npx tsx scripts/kursbank/upload.ts bank/<kurs>
 ```
 
-`upload.ts` needs `.env.kursbank`. If it is missing, stop and ask Axel to create it from `.env.kursbank.example`. It refuses ids without the `<kurs>-` prefix, never touches unchanged cards, never re-activates reported or rejected cards, and updates `published-ids.json` itself.
+It refuses ids without the `<kurs>-` prefix, never touches unchanged cards, never re-activates reported or rejected cards, and updates `published-ids.json` itself.
 
 **Only after the upload printed `Klart.`**, run:
 
@@ -152,7 +159,7 @@ npx tsx scripts/kursbank/upload.ts bank/<kurs>
 npx tsx scripts/kursbank/extract.ts bank/<kurs> --write-manifest
 ```
 
-If the upload failed, do not write the manifest. That way the next run sees the same sources as new and redoes the work.
+**If the upload fails** (non-zero exit, an error message, or no `Klart.`), **stop**. Report the error to Axel, and do not write the manifest, commit or announce anything. The next run then sees the same sources as new and redoes the work.
 
 ### 8. Commit
 
