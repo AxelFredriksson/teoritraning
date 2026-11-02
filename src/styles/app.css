@@ -78,8 +78,11 @@ textarea { min-height: 140px; resize: vertical; }
 .pen-area {
   position: relative; border: 1px solid var(--line); border-radius: var(--r-card); overflow: hidden;
   background: #fff linear-gradient(#EEF0F4 1px, transparent 1px) 0 0 / 100% 40px;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
-.pen-tools { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 8px; }
+.pen-area canvas.erasing { cursor: cell; }
+.pen-tools { position: absolute; right: 12px; bottom: 12px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.pen-tools .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 .hand-answer { width: 100%; border: 1px solid var(--line); border-radius: var(--r-card); background: #fff; }
 .math-text, .math-inline { line-height: 1.75; }
 .math-text .katex, .math-inline .katex { font-size: 1.05em; }
