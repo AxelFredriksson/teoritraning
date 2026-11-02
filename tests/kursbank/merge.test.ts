@@ -28,7 +28,11 @@ test('checkCalc flags disagreement with both numbers in the note', () => {
 
 test('checkCalc flags a throwing expression and an infinite loop without throwing', () => {
   expect(checkCalc(calc('c', 1, 'foo.bar')).ok).toBe(false)
-  expect(checkCalc(calc('c', 1, 'while(true){}')).ok).toBe(false)
+  // Non-whitelisted code (loops included) is rejected before evaluation; the vm timeout is only a backstop.
+  const loop = checkCalc(calc('c', 1, 'while(true){}'))
+  expect(loop.ok).toBe(false)
+  if (!loop.ok) expect(loop.note).toContain('otillåtet')
+  expect(checkCalc(calc('c', 1, '1/0')).ok).toBe(false)
 })
 
 test('mergeCourse sets FLAG → flagged with note, missing verdict → flagged "Ej kontrollerad"', () => {
@@ -70,8 +74,31 @@ test('mergeCourse rejects duplicate ids across parts', () => {
   expect(() => mergeCourse({ course, parts, verdicts: pass('a'), publishedIds: [] })).toThrow(/duplicate id: a/)
 })
 
-test('checkCalc does not expose the host realm (no process via Math.constructor.constructor)', () => {
-  const r = checkCalc(calc('c', 1, "Math.constructor.constructor('return typeof process')()"))
+test.each([
+  "this.constructor.constructor('return typeof process')()",
+  'Math.constructor',
+  '(()=>1)()',
+  'a=1',
+  '[1][0]',
+])('checkCalc rejects %s without evaluating', (expr) => {
+  const r = checkCalc(calc('c', 1, expr))
   expect(r.ok).toBe(false)
-  if (!r.ok) expect(r.note).not.toContain('object')
+  if (!r.ok) expect(r.note).toContain('otillåtet uttryck i check')
+})
+
+test('checkCalc accepts whitelisted expressions', () => {
+  expect(checkCalc(calc('c', 100 * (1 + 0.035 * 144 / 360), '100*(1+0.035*144/360)')).ok).toBe(true)
+  expect(checkCalc(calc('c', Math.max(0, 218 * Math.exp(0.1) - 220), 'Math.max(0, 218*Math.exp(0.1) - 220)')).ok).toBe(true)
+  expect(checkCalc(calc('c', 1500, '1.5e3 + 0 * Math.PI ** 2')).ok).toBe(true)
+})
+
+test('checkCalc provides the standard normal CDF N', () => {
+  const near = (v: number, check: string) => {
+    const c = calc('c', v, check)
+    c.answer!.tolerance = 1e-4
+    return checkCalc(c).ok
+  }
+  expect(near(0.5, 'N(0)')).toBe(true)
+  expect(near(0.975, 'N(1.96)')).toBe(true)
+  expect(near(0.025, 'N(-1.96)')).toBe(true)
 })

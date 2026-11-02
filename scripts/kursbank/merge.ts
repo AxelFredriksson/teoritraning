@@ -2,19 +2,46 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { runInNewContext } from 'node:vm'
+import { createContext, runInContext } from 'node:vm'
 import { BankSchema, type Bank, type Card, type Concept } from '../../src/bank/schema'
 import { loadCourse, type CourseConfig } from './config'
 import { runSummary } from './summary'
 
 type Verdicts = Record<string, { result: 'PASS' | 'FLAG'; note?: string }>
 
+// node:vm is not a security boundary, so `check` is only evaluated when every token is on this whitelist.
+const ALLOWED_IDENTS = new Set([
+  'Math.exp', 'Math.log', 'Math.sqrt', 'Math.pow', 'Math.max', 'Math.min', 'Math.abs', 'Math.round', 'Math.floor', 'Math.ceil',
+  'Math.E', 'Math.PI', 'N',
+])
+const TOKEN = /\s+|(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*|\*\*|[-+*/%(),]/y
+
+function firstDisallowedToken(expr: string): string | null {
+  TOKEN.lastIndex = 0
+  while (TOKEN.lastIndex < expr.length) {
+    const start = TOKEN.lastIndex
+    const m = TOKEN.exec(expr)
+    if (!m) return expr[start]
+    if (/^[A-Za-z_$]/.test(m[0]) && !ALLOWED_IDENTS.has(m[0])) return m[0]
+  }
+  return null
+}
+
+// Standard normal CDF (Abramowitz-Stegun 7.1.26 erf, error < 1.5e-7), defined inside the evaluation context.
+const PRELUDE = `function N(x){var z=Math.abs(x)/Math.SQRT2,t=1/(1+0.3275911*z),
+y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-z*z);
+return 0.5*(1+(x<0?-y:y))}`
+
 export function checkCalc(card: Card): { ok: true } | { ok: false; note: string } {
   if (card.type !== 'calc' || !card.answer) return { ok: true }
   const { value, tolerance, check } = card.answer
+  const bad = firstDisallowedToken(check)
+  if (bad !== null) return { ok: false, note: `otillåtet uttryck i check: ${bad}` }
   let got: unknown
   try {
-    got = runInNewContext(check, {}, { timeout: 100 })
+    const ctx = createContext(Object.create(null))
+    runInContext(PRELUDE, ctx)
+    got = runInContext(check, ctx, { timeout: 100 })
   } catch (e) {
     return { ok: false, note: `Kontrolluttrycket kunde inte beräknas: ${e instanceof Error ? e.message : String(e)}` }
   }
