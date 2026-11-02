@@ -8,11 +8,11 @@ export type RemoteCard = {
   content_hash: string | null
   reviewed_at: string | null
 }
-export type CardWrite = { id: string; row: Record<string, unknown>; kind: 'insert' | 'update' | 'release' }
+export type CardWrite = { id: string; row: Record<string, unknown>; kind: 'insert' | 'update' | 'release' | 'retire' }
 export type UploadPlan = {
   writes: CardWrite[]
   skipped: number
-  summary: { inserted: number; updated: number; requeued: number; released: number; untouchedMissingLocally: string[] }
+  summary: { inserted: number; updated: number; requeued: number; released: number; retired: number; untouchedMissingLocally: string[] }
 }
 
 /** Every uploaded content field (snake_case DB columns) except status/verify_note/content_hash. `answer.check` is never uploaded. */
@@ -60,7 +60,7 @@ export function cardHash(conceptId: string, c: Card): string {
 export function planUpload(bank: Bank, remote: RemoteCard[], reportedIds: Set<string>, today: string): UploadPlan {
   const byId = new Map(remote.map((r) => [r.id, r]))
   const writes: CardWrite[] = []
-  const summary = { inserted: 0, updated: 0, requeued: 0, released: 0, untouchedMissingLocally: [] as string[] }
+  const summary = { inserted: 0, updated: 0, requeued: 0, released: 0, retired: 0, untouchedMissingLocally: [] as string[] }
   let skipped = 0
   const localIds = new Set<string>()
 
@@ -77,7 +77,10 @@ export function planUpload(bank: Bank, remote: RemoteCard[], reportedIds: Set<st
         writes.push({ id: c.id, kind: 'insert', row: full(c.status, c.verifyNote ?? null) })
         summary.inserted++
       } else if (r.content_hash === hash) {
-        if (r.status === 'flagged' && c.status === 'active' && !reportedIds.has(c.id) && r.reviewed_at == null) {
+        if (c.status === 'retired' && r.status !== 'retired') {
+          writes.push({ id: c.id, kind: 'retire', row: { id: c.id, status: 'retired' } })
+          summary.retired++
+        } else if (r.status === 'flagged' && c.status === 'active' && !reportedIds.has(c.id) && r.reviewed_at == null) {
           writes.push({ id: c.id, kind: 'release', row: { id: c.id, status: 'active', verify_note: c.verifyNote ?? null } })
           summary.released++
         } else skipped++
@@ -113,4 +116,10 @@ export function idsOutsideCoursePrefix(bank: Bank): string[] {
 export function nextPublishedIds(existing: string[], bank: Bank, remoteIds: Set<string>, writtenIds: string[]): string[] {
   const local = bank.concepts.flatMap((k) => [k.id, ...k.cards.map((c) => c.id)])
   return [...new Set([...existing, ...local.filter((id) => remoteIds.has(id)), ...writtenIds])].sort()
+}
+
+/** Splits writes into full-row upserts and status-only updates (release/retire), which must not overwrite content. */
+export function splitWrites(writes: CardWrite[]): { full: CardWrite[]; statusOnly: CardWrite[] } {
+  const isStatusOnly = (w: CardWrite) => w.kind === 'release' || w.kind === 'retire'
+  return { full: writes.filter((w) => !isStatusOnly(w)), statusOnly: writes.filter(isStatusOnly) }
 }

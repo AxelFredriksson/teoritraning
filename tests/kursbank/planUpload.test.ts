@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { cardHash, idsOutsideCoursePrefix, nextPublishedIds, planUpload, type RemoteCard } from '../../scripts/kursbank/plan-upload'
+import { cardHash, idsOutsideCoursePrefix, nextPublishedIds, planUpload, splitWrites, type RemoteCard } from '../../scripts/kursbank/plan-upload'
 import type { Bank, Card } from '../../src/bank/schema'
 
 const TODAY = '2026-11-02'
@@ -125,4 +125,29 @@ test('nextPublishedIds heals after a crashed run: batch-1 inserts are recorded o
   expect(rerun).toEqual(['a', 'b', 'c', 'k1'].sort())
   // zero writes still heals; existing entries are kept, no duplicates
   expect(nextPublishedIds(['z', 'a'], bank, new Set(['a', 'k1']), [])).toEqual(['a', 'k1', 'z'])
+})
+
+test('unchanged card retired locally is retired remotely (even if reported/approved)', () => {
+  const c = card({ status: 'retired' })
+  const r = plan(bankOf(c), [remoteOf(c, { status: 'active', reviewed_at: '2026-01-01' })], ['c1'])
+  expect(r.writes).toEqual([{ id: 'c1', kind: 'retire', row: { id: 'c1', status: 'retired' } }])
+  expect(r.summary.retired).toBe(1)
+  expect(plan(bankOf(c), [remoteOf(c, { status: 'flagged' })]).writes[0].kind).toBe('retire')
+})
+
+test('already-retired remote card is skipped', () => {
+  const c = card({ status: 'retired' })
+  const r = plan(bankOf(c), [remoteOf(c, { status: 'retired' })])
+  expect(r.writes).toEqual([])
+  expect(r.skipped).toBe(1)
+})
+
+test('splitWrites sends release and retire as status-only, not full rows', () => {
+  const w = [
+    { id: 'a', kind: 'insert', row: {} }, { id: 'b', kind: 'update', row: {} },
+    { id: 'c', kind: 'release', row: {} }, { id: 'd', kind: 'retire', row: {} },
+  ] as const
+  const { full, statusOnly } = splitWrites([...w])
+  expect(full.map((x) => x.id)).toEqual(['a', 'b'])
+  expect(statusOnly.map((x) => x.id)).toEqual(['c', 'd'])
 })

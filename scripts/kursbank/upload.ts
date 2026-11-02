@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createClient } from '@supabase/supabase-js'
 import { BankSchema } from '../../src/bank/schema'
-import { idsOutsideCoursePrefix, nextPublishedIds, planUpload, type RemoteCard } from './plan-upload'
+import { idsOutsideCoursePrefix, nextPublishedIds, planUpload, splitWrites, type RemoteCard } from './plan-upload'
 
 function parseEnv(text: string): Record<string, string> {
   const out: Record<string, string> = {}
@@ -74,13 +74,13 @@ async function main() {
     'Skriv begrepp',
   )
 
-  const full = plan.writes.filter((w) => w.kind !== 'release')
+  const { full, statusOnly } = splitWrites(plan.writes)
   for (let i = 0; i < full.length; i += 100) {
     ok(await sb.from('cards').upsert(full.slice(i, i + 100).map((w) => w.row)), 'Skriv kort')
   }
-  for (const w of plan.writes.filter((x) => x.kind === 'release')) {
+  for (const w of statusOnly) {
     const { id, ...patch } = w.row
-    ok(await sb.from('cards').update(patch).eq('id', id as string), 'Släpp kort')
+    ok(await sb.from('cards').update(patch).eq('id', id as string), 'Uppdatera status')
   }
 
   const file = join(dir, 'published-ids.json')
