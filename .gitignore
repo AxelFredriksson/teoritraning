@@ -33,3 +33,5 @@ bank/src/
 
 .vercel
 .env*
+
+bank/*/extract/
