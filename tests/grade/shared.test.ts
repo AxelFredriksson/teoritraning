@@ -78,3 +78,23 @@ test('LaTeX examples in system prompt keep their backslashes', () => {
   expect(system).toContain(String.raw`$\sigma\in\Sigma_u$`)
   expect(system).not.toContain('\t')
 })
+
+test('system prompt is not math-only', () => {
+  const { system } = buildGradingPrompt(card, { text: 'x', hasImage: false })
+  expect(system).not.toContain('i matematik')
+  expect(system).toContain('universitetskurs')
+})
+
+test('find_calc_error mode includes solution steps and asks for the first deviating step', () => {
+  const calc = { ...card, steps: ['Steg A: 2+2=4', 'Steg B: 4*3=12'] }
+  const p = buildGradingPrompt(calc, { hasImage: true, mode: 'find_calc_error' })
+  expect(p.userText).toContain('Steg A: 2+2=4')
+  expect(p.userText).toContain('Steg B: 4*3=12')
+  expect(p.userText).toContain('första steget')
+  expect(p.userText.indexOf('första steget')).toBeLessThan(p.userText.indexOf('<student_answer>'))
+})
+
+test('default mode has no solution steps block', () => {
+  const calc = { ...card, steps: ['Steg A'] }
+  expect(buildGradingPrompt(calc, { text: 'x', hasImage: false }).userText).not.toContain('Lösning steg för steg')
+})

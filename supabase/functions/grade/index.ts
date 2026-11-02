@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
   const { data: allowed } = await admin.from('allowed_users').select('user_id').eq('user_id', user.id).maybeSingle()
   if (!allowed) return json(req, 403, { error: 'forbidden' })
 
-  let body: { card_id?: string; text?: string; image_base64?: string }
+  let body: { card_id?: string; text?: string; image_base64?: string; mode?: string }
   try {
     body = await req.json()
   } catch {
@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
   const finish = (fields: Record<string, unknown>) => admin.from('grading_log').update(fields).eq('id', logId)
 
   // 3. card from the database, never from the client
-  const { data: card } = await admin.from('cards').select('prompt_md, reference_answer_md, rubric_md').eq('id', body.card_id).maybeSingle()
+  const { data: card } = await admin.from('cards').select('prompt_md, reference_answer_md, rubric_md, steps').eq('id', body.card_id).maybeSingle()
   if (!card) {
     await finish({ provider: 'none', model: 'none' })
     return json(req, 404, { error: 'card' })
@@ -123,7 +123,11 @@ Deno.serve(async (req) => {
   }
 
   // 5. grade
-  const { system, userText } = buildGradingPrompt(card as GradableCard, { text: body.text, hasImage: kind === 'image' })
+  const { system, userText } = buildGradingPrompt(card as GradableCard, {
+    text: body.text,
+    hasImage: kind === 'image',
+    mode: body.mode === 'find_calc_error' ? 'find_calc_error' : undefined,
+  })
   try {
     const { result, usage } =
       provider === 'gemini'
