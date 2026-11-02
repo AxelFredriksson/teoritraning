@@ -16,12 +16,14 @@ type Active = {
   touch: boolean
   rect: DOMRect
   stroke?: Stroke // pen gesture
+  ahead?: Point[] // pen gesture: where the browser predicts the pen is going; drawn, never kept
   before?: Stroke[] // eraser gesture: strokes when it started
   last?: Point // eraser gesture: previous position
 }
 
-const raf = (cb: () => void) =>
-  typeof requestAnimationFrame === 'function' ? requestAnimationFrame(cb) : window.setTimeout(cb, 16)
+const hasRaf = typeof requestAnimationFrame === 'function'
+const raf = (cb: () => void) => (hasRaf ? requestAnimationFrame(cb) : window.setTimeout(cb, 16))
+const cancelRaf = (id: number) => (hasRaf ? cancelAnimationFrame(id) : window.clearTimeout(id))
 
 export function Canvas({ ref, onChange, height = 420 }: { ref?: Ref<CanvasHandle>; onChange?: (hasInk: boolean) => void; height?: number }) {
   const el = useRef<HTMLCanvasElement>(null)
@@ -78,7 +80,10 @@ export function Canvas({ ref, onChange, height = 420 }: { ref?: Ref<CanvasHandle
     ctx.clearRect(0, 0, c.width, c.height)
     if (base.current) ctx.drawImage(base.current, 0, 0)
     const a = active.current
-    if (a?.stroke) paint(ctx, [a.stroke], false)
+    if (a?.stroke) {
+      const live = a.ahead?.length ? { ...a.stroke, points: [...a.stroke.points, ...a.ahead] } : a.stroke
+      paint(ctx, [live], false)
+    }
     if (a?.last) {
       ctx.setTransform(dpr(), 0, 0, dpr(), 0, 0)
       ctx.beginPath()
@@ -91,6 +96,12 @@ export function Canvas({ ref, onChange, height = 420 }: { ref?: Ref<CanvasHandle
 
   function schedule() {
     if (!frame.current) frame.current = raf(draw)
+  }
+
+  /** Draws right away instead of waiting up to a frame for the next animation callback. */
+  function drawNow() {
+    if (frame.current) cancelRaf(frame.current)
+    draw()
   }
 
   useEffect(() => {
@@ -192,8 +203,9 @@ export function Canvas({ ref, onChange, height = 420 }: { ref?: Ref<CanvasHandle
       if (a.stroke) a.stroke.points.push(pt)
       else erased = eraseTo(a, pt) || erased
     }
+    if (a.stroke) a.ahead = (e.nativeEvent.getPredictedEvents?.() ?? []).map((ev) => pos(a, ev))
     if (erased) renderBase()
-    else schedule()
+    drawNow()
   }
 
   function up(e: React.PointerEvent<HTMLCanvasElement>) {

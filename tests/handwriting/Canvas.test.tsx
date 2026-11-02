@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { createEvent, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
 import { Canvas } from '../../src/handwriting/Canvas'
@@ -41,6 +41,19 @@ test('moves from another pointer (a resting palm) do not join the pen stroke', a
   fireEvent.pointerMove(canvas, { clientX: 320, clientY: 300, pointerId: 2, pointerType: 'touch' })
   fireEvent.pointerUp(canvas, { pointerId: 1, pointerType: 'pen' })
   // erasing at the pen dot clears everything, so no palm point made it into the stroke
+  await userEvent.click(screen.getByRole('button', { name: 'Sudd' }))
+  drag([[10, 10]])
+  expect(onChange).toHaveBeenLastCalledWith(false)
+})
+
+test('predicted pen points are only drawn ahead, never kept in the stroke', async () => {
+  const { onChange, canvas, drag } = setup()
+  fireEvent.pointerDown(canvas, { clientX: 10, clientY: 10, pointerId: 1, pointerType: 'pen' })
+  const ev = createEvent.pointerMove(canvas, { clientX: 10, clientY: 10, pointerId: 1, pointerType: 'pen' })
+  const ahead = (x: number) => ({ clientX: x, clientY: 300, pointerId: 1, pointerType: 'pen', pressure: 0.5 })
+  Object.defineProperty(ev, 'getPredictedEvents', { value: () => [ahead(300), ahead(320)] })
+  fireEvent(canvas, ev)
+  fireEvent.pointerUp(canvas, { pointerId: 1, pointerType: 'pen' })
   await userEvent.click(screen.getByRole('button', { name: 'Sudd' }))
   drag([[10, 10]])
   expect(onChange).toHaveBeenLastCalledWith(false)
