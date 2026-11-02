@@ -8,5 +8,5 @@ export const concept = (over: Partial<ConceptRow> = {}): ConceptRow => ({
 export const card = (over: Partial<CardRow> = {}): CardRow => ({
   id: 'c1', concept_id: 'k1', course_id: 'TATA77', type: 'content', answer_mode: 'open',
   prompt_md: 'p', choices: null, correct: null, reference_answer_md: 'a', rubric_md: 'r',
-  steps: null, error_step: null, source_ref: 'r', exam_ref: null, status: 'active', verify_note: null, title: null, level: 2, ...over,
+  steps: null, error_step: null, answer_value: null, answer_tolerance: null, answer_unit: null, source_ref: 'r', exam_ref: null, status: 'active', verify_note: null, title: null, level: 2, ...over,
 })

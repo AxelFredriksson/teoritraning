@@ -5,4 +5,6 @@ export const TYPE_LABEL: Record<CardType, string> = {
   conditions: 'Villkor',
   recognition: 'Igenkänning',
   find_error: 'Hitta felet',
+  calc: 'Räkna',
+  reasoning: 'Resonemang',
 }

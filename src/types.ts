@@ -1,5 +1,5 @@
 export type Verdict = 'correct' | 'partial' | 'incorrect'
-export type CardType = 'content' | 'conditions' | 'recognition' | 'find_error'
+export type CardType = 'content' | 'conditions' | 'recognition' | 'find_error' | 'calc' | 'reasoning'
 
 export interface ConceptRow {
   id: string
@@ -18,7 +18,7 @@ export interface CardRow {
   concept_id: string
   course_id: string
   type: CardType
-  answer_mode: 'mc' | 'open'
+  answer_mode: 'mc' | 'open' | 'numeric'
   prompt_md: string
   choices: string[] | null
   correct: number[] | null
@@ -26,9 +26,12 @@ export interface CardRow {
   rubric_md: string | null
   steps: string[] | null
   error_step: number | null
+  answer_value: number | null
+  answer_tolerance: number | null
+  answer_unit: string | null
   source_ref: string
   exam_ref: string | null
-  status: 'active' | 'flagged' | 'rejected'
+  status: 'active' | 'flagged' | 'rejected' | 'retired'
   verify_note: string | null
   title: string | null
   level: Level

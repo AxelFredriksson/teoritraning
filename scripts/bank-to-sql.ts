@@ -10,6 +10,7 @@ const textArr = (v: string[]) => `array[${v.map(q).join(',')}]::text[]`
 const CARD_COLS = [
   'concept_id', 'course_id', 'type', 'answer_mode', 'prompt_md', 'choices', 'correct',
   'reference_answer_md', 'rubric_md', 'steps', 'error_step', 'source_ref', 'exam_ref', 'status', 'verify_note', 'title', 'level',
+  'answer_value', 'answer_tolerance', 'answer_unit',
 ]
 
 function bankToStatements(bank: Bank): string[] {
@@ -28,6 +29,7 @@ function bankToStatements(bank: Bank): string[] {
       const vals = [
         q(k.id), q(c.id), q(d.type), q(d.answerMode), q(d.promptMd), json(d.choices), json(d.correct),
         q(d.referenceAnswerMd), q(d.rubricMd), json(d.steps), num(d.errorStep), q(d.sourceRef), q(d.examRef), q(d.status), q(d.verifyNote), q(d.title), num(d.level),
+        num(d.answer?.value), num(d.answer?.tolerance), q(d.answer?.unit),
       ]
       out.push(
         `insert into cards (id, ${CARD_COLS.join(', ')}) values (${q(d.id)}, ${vals.join(', ')}) on conflict (id) do update set ` +

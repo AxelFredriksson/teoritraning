@@ -17,10 +17,10 @@ export function createAdminApi(client: Supa): AdminApi {
       )
     },
     async setCardStatus(id, status) {
-      check(await client.from('cards').update({ status }).eq('id', id))
+      check(await client.from('cards').update({ status, reviewed_at: new Date().toISOString() }).eq('id', id))
     },
     async updateCard(id, patch) {
-      check(await client.from('cards').update(patch).eq('id', id))
+      check(await client.from('cards').update({ ...patch, reviewed_at: new Date().toISOString() }).eq('id', id))
     },
     async getSettings() {
       const r = await client.from('settings').select('key, value')
