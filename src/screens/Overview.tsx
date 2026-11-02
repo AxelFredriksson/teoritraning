@@ -23,19 +23,59 @@ export function conceptMastery(cards: CardRow[], states: Map<string, CardState>)
 const LABEL: Record<Mastery, string> = { new: 'Ny', learning: 'På gång', mastered: 'Sitter' }
 const DOT: Record<Mastery, string> = { new: 'var(--line)', learning: 'var(--learning)', mastered: 'var(--mastered)' }
 
+function ConfirmReset({
+  warning,
+  confirmLabel,
+  onConfirm,
+  onDone,
+}: {
+  warning: string
+  confirmLabel: string
+  onConfirm: () => Promise<void>
+  onDone: () => void
+}) {
+  const [state, setState] = useState<'idle' | 'busy' | 'error'>('idle')
+  return (
+    <>
+      <p role="alert" className="alert">{warning}</p>
+      <div className="row">
+        <button
+          className="btn danger"
+          disabled={state === 'busy'}
+          onClick={async () => {
+            setState('busy')
+            try {
+              await onConfirm()
+              onDone()
+            } catch {
+              setState('error')
+            }
+          }}
+        >
+          {state === 'busy' ? 'Återställer…' : confirmLabel}
+        </button>
+        <button className="btn ghost" onClick={onDone}>Avbryt</button>
+      </div>
+      {state === 'error' && <p className="alert">Kunde inte återställa. Försök igen.</p>}
+    </>
+  )
+}
+
 export function Overview({
   data,
   onBack,
   onPractice,
   onReset,
+  onResetLecture,
 }: {
   data: CourseData
   onBack: () => void
   onPractice: (f: PickFilter) => void
   onReset?: () => Promise<void>
+  onResetLecture?: (lecture: number) => Promise<void>
 }) {
   const [confirmReset, setConfirmReset] = useState(false)
-  const [resetState, setResetState] = useState<'idle' | 'busy' | 'error'>('idle')
+  const [confirmLecture, setConfirmLecture] = useState<number | null>(null)
   const byConcept = new Map<string, CardRow[]>()
   for (const c of data.cards) byConcept.set(c.concept_id, [...(byConcept.get(c.concept_id) ?? []), c])
   const rows = data.concepts
@@ -74,7 +114,22 @@ export function Overview({
       </div>
       {lectures.map((l) => (
         <section key={l} className="stack">
-          <h2 className="muted" style={{ fontSize: 14 }}>Föreläsning {l}</h2>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <h2 className="muted" style={{ fontSize: 14 }}>Föreläsning {l}</h2>
+            {onResetLecture && confirmLecture !== l && (
+              <button className="btn ghost" style={{ fontSize: 13 }} onClick={() => setConfirmLecture(l)}>Återställ F{l}</button>
+            )}
+          </div>
+          {onResetLecture && confirmLecture === l && (
+            <div className="panel stack danger-zone">
+              <ConfirmReset
+                warning={`Alla kort i föreläsning ${l} blir nya igen. Det går inte att ångra.`}
+                confirmLabel={`Ja, återställ F${l}`}
+                onConfirm={() => onResetLecture(l)}
+                onDone={() => setConfirmLecture(null)}
+              />
+            </div>
+          )}
           {rows.filter((r) => r.k.lecture === l).map(({ k, cards, m }) => (
             <div key={k.id} className="concept">
               <button
@@ -123,29 +178,12 @@ export function Overview({
               <button className="btn" onClick={() => setConfirmReset(true)}>Återställ framsteg</button>
             </>
           ) : (
-            <>
-              <p role="alert" className="alert">Alla kort i kursen blir nya igen. Det går inte att ångra.</p>
-              <div className="row">
-                <button
-                  className="btn danger"
-                  disabled={resetState === 'busy'}
-                  onClick={async () => {
-                    setResetState('busy')
-                    try {
-                      await onReset()
-                      setConfirmReset(false)
-                      setResetState('idle')
-                    } catch {
-                      setResetState('error')
-                    }
-                  }}
-                >
-                  {resetState === 'busy' ? 'Återställer…' : 'Ja, återställ'}
-                </button>
-                <button className="btn ghost" onClick={() => { setConfirmReset(false); setResetState('idle') }}>Avbryt</button>
-              </div>
-              {resetState === 'error' && <p className="alert">Kunde inte återställa. Försök igen.</p>}
-            </>
+            <ConfirmReset
+              warning="Alla kort i kursen blir nya igen. Det går inte att ångra."
+              confirmLabel="Ja, återställ"
+              onConfirm={onReset}
+              onDone={() => setConfirmReset(false)}
+            />
           )}
         </section>
       )}

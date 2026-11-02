@@ -133,6 +133,14 @@ export function createApi(client: Supa) {
       if (error) throw new Error(error.message)
     },
 
+    /** Same as resetCourse, limited to the cards of one lecture. */
+    async resetLecture(courseId: string, lecture: number, cardIds: string[]): Promise<void> {
+      const inLecture = new Set(cardIds)
+      writePending(readPending().filter((r) => !inLecture.has(r.cardId)))
+      const { error } = await client.rpc('reset_lecture_progress', { p_course: courseId, p_lecture: lecture })
+      if (error) throw new Error(error.message)
+    },
+
     async reportCard(cardId: string, note: string): Promise<void> {
       const uid = await userId()
       const { error } = await client.from('card_reports').insert({ user_id: uid, card_id: cardId, note })

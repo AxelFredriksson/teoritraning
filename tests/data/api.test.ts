@@ -112,3 +112,12 @@ test('resetCourse calls the reset rpc and drops queued reviews for that course',
   const left = JSON.parse(localStorage.getItem('pendingReviews')!).map((r: { cardId: string }) => r.cardId)
   expect(left).toEqual(['other'])
 })
+
+test('resetLecture calls the lecture reset rpc and drops queued reviews for that lecture', async () => {
+  localStorage.setItem('pendingReviews', JSON.stringify([{ ...review, cardId: 'in-lecture' }, { ...review, cardId: 'other' }]))
+  const { client, calls } = fakeClient({ upsertError: true })
+  await createApi(client as never).resetLecture('TATA77', 4, ['in-lecture'])
+  expect(calls).toContainEqual(expect.objectContaining({ table: 'rpc:reset_lecture_progress', payload: { p_course: 'TATA77', p_lecture: 4 } }))
+  const left = JSON.parse(localStorage.getItem('pendingReviews')!).map((r: { cardId: string }) => r.cardId)
+  expect(left).toEqual(['other'])
+})

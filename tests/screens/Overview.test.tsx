@@ -77,3 +77,22 @@ test('reset can be cancelled', async () => {
   expect(screen.queryByRole('button', { name: 'Ja, återställ' })).toBeNull()
   expect(onReset).not.toHaveBeenCalled()
 })
+
+test('a single lecture can be reset after confirmation', async () => {
+  const onResetLecture = vi.fn(async (_l: number) => {})
+  render(<Overview data={data()} onBack={() => {}} onPractice={() => {}} onResetLecture={onResetLecture} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Återställ F10' }))
+  expect(onResetLecture).not.toHaveBeenCalled()
+  expect(screen.getByText(/Alla kort i föreläsning 10 blir nya igen/)).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Ja, återställ F10' }))
+  expect(onResetLecture).toHaveBeenCalledWith(10)
+})
+
+test('lecture reset can be cancelled', async () => {
+  const onResetLecture = vi.fn(async (_l: number) => {})
+  render(<Overview data={data()} onBack={() => {}} onPractice={() => {}} onResetLecture={onResetLecture} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Återställ F10' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Avbryt' }))
+  expect(screen.queryByRole('button', { name: 'Ja, återställ F10' })).toBeNull()
+  expect(onResetLecture).not.toHaveBeenCalled()
+})
