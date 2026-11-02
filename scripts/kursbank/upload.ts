@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createClient } from '@supabase/supabase-js'
 import { BankSchema } from '../../src/bank/schema'
-import { planUpload, type RemoteCard } from './plan-upload'
+import { idsOutsideCoursePrefix, nextPublishedIds, planUpload, type RemoteCard } from './plan-upload'
 
 function parseEnv(text: string): Record<string, string> {
   const out: Record<string, string> = {}
@@ -36,6 +36,8 @@ async function main() {
   if (!parsed.success) fail(JSON.stringify(parsed.error.issues, null, 2))
   const bank = parsed.data
   const courseId = bank.course.id
+  const foreign = idsOutsideCoursePrefix(bank)
+  if (foreign.length) fail(`Id utan kursprefix ${courseId.toLowerCase()}- (kan skriva över annan kurs):\n${foreign.join('\n')}`)
 
   const sb = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } })
   const ok = <T>(r: { data: T | null; error: { message: string } | null }, what: string): T => {
@@ -83,9 +85,9 @@ async function main() {
 
   const file = join(dir, 'published-ids.json')
   const prev: string[] = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : []
-  const inserted = new Set(plan.writes.filter((w) => w.kind === 'insert').map((w) => w.id))
-  const ids = bank.concepts.flatMap((k) => (k.cards.some((c) => inserted.has(c.id)) ? [k.id] : []))
-  writeFileSync(file, JSON.stringify([...new Set([...prev, ...ids, ...inserted])].sort(), null, 2) + '\n')
+  const written = [...bank.concepts.map((k) => k.id), ...plan.writes.map((w) => w.id)]
+  const next = nextPublishedIds(prev, bank, new Set(remote.map((r) => r.id)), written)
+  writeFileSync(file, JSON.stringify(next, null, 2) + '\n')
   console.log('Klart.')
 }
 

@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { cardHash, planUpload, type RemoteCard } from '../../scripts/kursbank/plan-upload'
+import { cardHash, idsOutsideCoursePrefix, nextPublishedIds, planUpload, type RemoteCard } from '../../scripts/kursbank/plan-upload'
 import type { Bank, Card } from '../../src/bank/schema'
 
 const TODAY = '2026-11-02'
@@ -104,4 +104,25 @@ test('answer.check is never part of the hash or row', () => {
   const row = plan(bankOf(a), []).writes[0].row
   expect(row).toMatchObject({ answer_value: 1, answer_tolerance: 0.1, answer_unit: 'm' })
   expect(JSON.stringify(row)).not.toContain('"check"')
+})
+
+test('idsOutsideCoursePrefix lists ids lacking the course prefix', () => {
+  const ok = card({ id: 't-c1' })
+  const bad = card({ id: 'other-c2' })
+  const bank = bankOf(ok, bad)
+  bank.course.id = 'T'
+  bank.concepts[0].id = 'k1'
+  expect(idsOutsideCoursePrefix(bank)).toEqual(['k1', 'other-c2'])
+  bank.concepts[0].id = 't-k1'
+  bank.concepts[0].cards[1].id = 't-c2'
+  expect(idsOutsideCoursePrefix(bank)).toEqual([])
+})
+
+test('nextPublishedIds heals after a crashed run: batch-1 inserts are recorded on re-run', () => {
+  const bank = bankOf(card({ id: 'a' }), card({ id: 'b' }), card({ id: 'c' }))
+  // first run inserted a and b remotely, then crashed before published-ids was written; c never landed
+  const rerun = nextPublishedIds([], bank, new Set(['a', 'b', 'unrelated']), ['k1', 'c'])
+  expect(rerun).toEqual(['a', 'b', 'c', 'k1'].sort())
+  // zero writes still heals; existing entries are kept, no duplicates
+  expect(nextPublishedIds(['z', 'a'], bank, new Set(['a', 'k1']), [])).toEqual(['a', 'k1', 'z'])
 })

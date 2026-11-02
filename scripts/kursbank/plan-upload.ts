@@ -98,3 +98,19 @@ export function planUpload(bank: Bank, remote: RemoteCard[], reportedIds: Set<st
   summary.untouchedMissingLocally = remote.filter((r) => !localIds.has(r.id)).map((r) => r.id)
   return { writes, skipped, summary }
 }
+
+/** Ids are global primary keys, so every bank id must carry the course prefix or it could overwrite another course's row. */
+export function idsOutsideCoursePrefix(bank: Bank): string[] {
+  const prefix = `${bank.course.id.toLowerCase()}-`
+  const ids = bank.concepts.flatMap((k) => [k.id, ...k.cards.map((c) => c.id)])
+  return ids.filter((id) => !id.startsWith(prefix))
+}
+
+/**
+ * published-ids.json after a run: existing ∪ local ids already present remotely (heals a crashed earlier run)
+ * ∪ ids written now. Sorted and de-duplicated.
+ */
+export function nextPublishedIds(existing: string[], bank: Bank, remoteIds: Set<string>, writtenIds: string[]): string[] {
+  const local = bank.concepts.flatMap((k) => [k.id, ...k.cards.map((c) => c.id)])
+  return [...new Set([...existing, ...local.filter((id) => remoteIds.has(id)), ...writtenIds])].sort()
+}
