@@ -151,3 +151,24 @@ test('splitWrites sends release and retire as status-only, not full rows', () =>
   expect(full.map((x) => x.id)).toEqual(['a', 'b'])
   expect(statusOnly.map((x) => x.id)).toEqual(['c', 'd'])
 })
+
+test('unchanged card newly flagged locally is demoted remotely (status-only)', () => {
+  const c = card({ status: 'flagged', verifyNote: 'begreppet ändrat' })
+  const r = plan(bankOf(c), [remoteOf(c, { status: 'active' })])
+  expect(r.writes).toEqual([{ id: 'c1', kind: 'demote', row: { id: 'c1', status: 'flagged', verify_note: 'begreppet ändrat' } }])
+  expect(r.summary.demoted).toBe(1)
+})
+
+test('reviewed card is never demoted', () => {
+  const c = card({ status: 'flagged', verifyNote: 'x' })
+  const r = plan(bankOf(c), [remoteOf(c, { status: 'active', reviewed_at: '2026-01-01' })])
+  expect(r.writes).toEqual([])
+  expect(r.summary.demoted).toBe(0)
+  expect(r.skipped).toBe(1)
+})
+
+test('splitWrites sends demote as status-only', () => {
+  const { full, statusOnly } = splitWrites([{ id: 'a', kind: 'demote', row: {} }])
+  expect(full).toEqual([])
+  expect(statusOnly.map((x) => x.id)).toEqual(['a'])
+})

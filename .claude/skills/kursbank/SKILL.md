@@ -151,7 +151,7 @@ Run the uploader exactly in this form, as a standalone command: no `cd … &&`, 
 npx tsx scripts/kursbank/upload.ts bank/<kurs>
 ```
 
-It refuses ids without the `<kurs>-` prefix, never touches unchanged cards, never re-activates reported or rejected cards, and updates `published-ids.json` itself.
+It refuses ids without the `<kurs>-` prefix, never overwrites the content of unchanged cards (it only changes their status: `retired`, `released` when a verifier-flagged card now passes, `demoted` when an unreviewed active card is now flagged), never re-activates reported or rejected cards, never re-flags a card Axel approved, and updates `published-ids.json` itself.
 
 **Only after the upload printed `Klart.`**, run:
 
