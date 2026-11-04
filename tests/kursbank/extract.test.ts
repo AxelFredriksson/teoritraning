@@ -16,3 +16,22 @@ test('zipDest refuses destinations that are the extract dir itself or outside it
 test('zipDest allows names that merely start with two dots', () => {
   expect(zipDest(EX, '..gammal.zip')).toBe(resolve(EX, '..gammal'))
 })
+
+test('writeManifestFromPending records the hashes seen at extract time, not the current folder', async () => {
+  const { mkdtempSync, writeFileSync, readFileSync, mkdirSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { writeManifestFromPending } = await import('../../scripts/kursbank/extract')
+  const dir = mkdtempSync(join(tmpdir(), 'kb-'))
+  mkdirSync(join(dir, 'extract'))
+  writeFileSync(join(dir, 'extract', 'manifest.pending.json'), JSON.stringify({ 'a.pdf': 'h1' }))
+  writeManifestFromPending(dir)
+  expect(JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8'))).toEqual({ 'a.pdf': 'h1' })
+})
+
+test('writeManifestFromPending refuses when extract has not run', async () => {
+  const { mkdtempSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { writeManifestFromPending } = await import('../../scripts/kursbank/extract')
+  const dir = mkdtempSync(join(tmpdir(), 'kb-'))
+  expect(() => writeManifestFromPending(dir)).toThrow(/extract/)
+})

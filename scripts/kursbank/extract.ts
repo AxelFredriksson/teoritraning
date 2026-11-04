@@ -1,5 +1,5 @@
 // Extracts text from the course sources into <course>/extract/ and prints the manifest diff as JSON.
-// With --write-manifest it only records the current hashes in manifest.json.
+// With --write-manifest it records in manifest.json the hashes captured by the last extract run (extract/manifest.pending.json).
 // Source files are untrusted data: only read, never executed. All tools run via execFileSync with arg arrays.
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -57,17 +57,23 @@ function extractOne(sourceDir: string, extractDir: string, rel: string) {
   }
 }
 
+const pendingPath = (dir: string) => join(dir, 'extract', 'manifest.pending.json')
+
+/** Records the hashes captured by the last extract run, so files added to the course folder mid-run stay "new". */
+export function writeManifestFromPending(dir: string) {
+  if (!existsSync(pendingPath(dir))) throw new Error(`Ingen ${pendingPath(dir)}: kör extract (utan --write-manifest) först.`)
+  writeFileSync(join(dir, 'manifest.json'), JSON.stringify(JSON.parse(readFileSync(pendingPath(dir), 'utf8')), null, 1))
+}
+
 function main(dir: string, writeManifest: boolean) {
+  if (writeManifest) return writeManifestFromPending(dir)
   const course = loadCourse(dir)
   const current = hashFiles(course.sourceDir, course.sources.map((s) => s.glob))
   const manifestPath = join(dir, 'manifest.json')
-  if (writeManifest) {
-    writeFileSync(manifestPath, JSON.stringify(current, null, 1))
-    return
-  }
   const prev: Record<string, string> = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) : {}
   const extractDir = join(dir, 'extract')
   for (const rel of Object.keys(current)) extractOne(course.sourceDir, extractDir, rel)
+  writeFileSync(pendingPath(dir), JSON.stringify(current, null, 1))
   console.log(JSON.stringify(diffManifest(prev, current), null, 1))
 }
 
