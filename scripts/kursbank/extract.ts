@@ -3,7 +3,7 @@
 // Source files are untrusted data: only read, never executed. All tools run via execFileSync with arg arrays.
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { loadCourse } from './config'
 import { diffManifest, hashFiles } from './manifest'
@@ -31,11 +31,22 @@ function* walk(dir: string): Generator<string> {
   }
 }
 
+/** Where a zip is unpacked; this folder is deleted first, so it must be a strict child of the extract dir. */
+export function zipDest(extractDir: string, rel: string): string {
+  const root = resolve(extractDir)
+  const dest = resolve(root, basename(rel, '.zip'))
+  const r = relative(root, dest)
+  if (!r || r === '..' || r.startsWith('..' + sep) || isAbsolute(r)) {
+    throw new Error(`Zip-mål ${dest} för ${rel} ligger inte i extract-mappen ${root}; vägrar radera det.`)
+  }
+  return dest
+}
+
 function extractOne(sourceDir: string, extractDir: string, rel: string) {
   const src = join(sourceDir, rel)
   if (rel.endsWith('.pdf')) pdfToText(src, join(extractDir, `${rel}.txt`))
   else if (rel.endsWith('.zip')) {
-    const dest = join(extractDir, basename(rel, '.zip'))
+    const dest = zipDest(extractDir, rel)
     rmSync(dest, { recursive: true, force: true })
     mkdirSync(dest, { recursive: true })
     execFileSync('unzip', ['-o', '-q', src, '-d', dest])
