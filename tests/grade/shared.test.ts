@@ -83,6 +83,10 @@ test('system prompt is not math-only', () => {
   const { system } = buildGradingPrompt(card, { text: 'x', hasImage: false })
   expect(system).not.toContain('i matematik')
   expect(system).toContain('universitetskurs')
+  expect(system).not.toContain('matematisk korrekthet')
+  expect(system).not.toContain('läs den som matematik')
+  expect(system).toContain('Bedöm ämnesmässig korrekthet och fullständighet, inte formen.')
+  expect(system).toContain('läs den som handskriven uträkning/text')
 })
 
 test('find_calc_error mode includes solution steps and asks for the first deviating step', () => {
