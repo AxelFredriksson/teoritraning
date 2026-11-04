@@ -55,3 +55,34 @@ test('pickNext respects maxLevel', () => {
   expect(pickNext(cards, concepts, new Map(), now, { maxLevel: 2 })?.id).toBe('base')
   expect(pickNext([cards[0]], concepts, new Map(), now, { maxLevel: 1 })).toBeNull()
 })
+
+const sv = (due: string, lastVerdict: CardState['lastVerdict']): CardState => ({ fsrs: {}, due, lastVerdict })
+
+test('lecture filter picks an earlier-wrong card that is not yet due before an unseen card', () => {
+  const cards = [card({ id: 'unseen', concept_id: 'common' }), card({ id: 'wrong', concept_id: 'common' })]
+  const states = new Map([['wrong', sv('2026-11-20T00:00:00Z', 'incorrect')]])
+  expect(pickNext(cards, concepts, states, now, { lecture: 1 })?.id).toBe('wrong')
+})
+
+test('concept filter picks incorrect before partial, then oldest due first', () => {
+  const cards = [card({ id: 'p', concept_id: 'common' }), card({ id: 'i2', concept_id: 'common' }), card({ id: 'i1', concept_id: 'common' })]
+  const states = new Map([
+    ['p', sv('2026-11-01T00:00:00Z', 'partial')],
+    ['i2', sv('2026-11-20T00:00:00Z', 'incorrect')],
+    ['i1', sv('2026-11-10T00:00:00Z', 'incorrect')],
+  ])
+  expect(pickNext(cards, concepts, states, now, { conceptId: 'common' })?.id).toBe('i1')
+  expect(pickNext(cards.filter((c) => c.id === 'p'), concepts, states, now, { conceptId: 'common' })?.id).toBe('p')
+})
+
+test('a card answered this session is skipped in the wrong-answers tier', () => {
+  const cards = [card({ id: 'wrong', concept_id: 'common' }), card({ id: 'unseen', concept_id: 'common' })]
+  const states = new Map([['wrong', sv('2026-11-20T00:00:00Z', 'incorrect')]])
+  expect(pickNext(cards, concepts, states, now, { lecture: 1, answered: new Set(['wrong']) })?.id).toBe('unseen')
+})
+
+test('without lecture or concept filter, earlier-wrong cards that are not due are not preferred', () => {
+  const cards = [card({ id: 'wrong', concept_id: 'common' }), card({ id: 'unseen', concept_id: 'common' })]
+  const states = new Map([['wrong', sv('2026-11-20T00:00:00Z', 'incorrect')]])
+  expect(pickNext(cards, concepts, states, now, {})?.id).toBe('unseen')
+})

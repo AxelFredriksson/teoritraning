@@ -57,7 +57,7 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
     // cards already on the trail and unanswered (skipped) are not picked again
     const answeredIds = new Set([...nextResults.keys()].map((i) => nextTrail[i]))
     const exclude = new Set([...nextRemoved, ...nextTrail.filter((id) => !answeredIds.has(id))])
-    const card = pickNext(data.cards, data.concepts, nextStates, new Date(), { ...filter, exclude })
+    const card = pickNext(data.cards, data.concepts, nextStates, new Date(), { ...filter, exclude, answered: answeredIds })
     if (card) {
       setTrail([...nextTrail, card.id])
       setPos(nextTrail.length)
@@ -74,7 +74,7 @@ export function Session({ data, filter, api, onExit }: { data: CourseData; filte
 
   function answer(card: CardRow, verdict: Verdict, source: 'ai' | 'mc' | 'self') {
     const now = new Date()
-    const state = schedule(states.get(card.id) ?? null, verdict, now)
+    const state: CardState = { ...schedule(states.get(card.id) ?? null, verdict, now), lastVerdict: verdict }
     const points = pointsFor(verdict, card.type)
     const s = nextStreak({ streak: stats.streak, lastActive: stats.lastActive }, now)
     const newStats = { points: stats.points + points, streak: s.streak, lastActive: s.lastActive }

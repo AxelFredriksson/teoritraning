@@ -44,6 +44,8 @@ export type Level = 1 | 2 | 3
 export interface CardState {
   fsrs: Record<string, unknown>
   due: string
+  /** Verdict of the latest answer to this card. */
+  lastVerdict?: Verdict | null
 }
 
 export interface GradeResult {

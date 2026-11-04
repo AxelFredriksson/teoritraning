@@ -191,3 +191,13 @@ test('avsluta exits the session directly after skipping', async () => {
   await userEvent.click(screen.getByRole('button', { name: /Avsluta/ }))
   expect(onExit).toHaveBeenCalledTimes(1)
 })
+
+test('in lecture practice a card just answered wrong is not shown again right away', async () => {
+  const api = fakeApi()
+  render(<Session data={data([mc, mc2])} filter={{ lecture: 1 }} api={api} onExit={() => {}} />)
+  expect(screen.getByText('Vilka villkor?')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'B' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Svara' }))
+  await userEvent.click(screen.getByRole('button', { name: /Nästa kort/ }))
+  expect(screen.getByText('Andra frågan')).toBeInTheDocument()
+})

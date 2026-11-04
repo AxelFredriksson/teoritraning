@@ -5,6 +5,8 @@ export interface PickFilter {
   conceptId?: string
   unseenOnly?: boolean
   exclude?: Set<string>
+  /** Cards answered earlier in this session; skipped by the wrong-answers-first tier. */
+  answered?: Set<string>
   /** Only cards at or below this level (1 Grund … 3 Avancerat). */
   maxLevel?: number
 }
@@ -24,6 +26,17 @@ export function pickNext(
     if (filter.lecture !== undefined && byId.get(c.concept_id)?.lecture !== filter.lecture) return false
     return true
   })
+  if (!filter.unseenOnly && (filter.lecture !== undefined || filter.conceptId)) {
+    // practising a lecture or concept: earlier wrong answers first, regardless of due time
+    const rank = (c: CardRow) => (states.get(c.id)?.lastVerdict === 'incorrect' ? 0 : 1)
+    const wrong = pool
+      .filter((c) => {
+        const v = states.get(c.id)?.lastVerdict
+        return (v === 'incorrect' || v === 'partial') && !filter.answered?.has(c.id)
+      })
+      .sort((a, b) => rank(a) - rank(b) || states.get(a.id)!.due.localeCompare(states.get(b.id)!.due))
+    if (wrong.length) return wrong[0]
+  }
   if (!filter.unseenOnly) {
     const due = pool
       .filter((c) => states.has(c.id) && new Date(states.get(c.id)!.due) <= now)
