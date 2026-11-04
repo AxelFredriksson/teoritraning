@@ -67,3 +67,14 @@ test('clear can be undone', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Ångra' }))
   expect(onChange).toHaveBeenLastCalledWith(true)
 })
+
+test('a resize while the canvas is hidden (0×0) keeps the current bitmap size', () => {
+  const { canvas } = setup()
+  const c = canvas as HTMLCanvasElement
+  c.width = 640
+  c.height = 480
+  vi.spyOn(c, 'getBoundingClientRect').mockReturnValue({ width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0, toJSON: () => ({}) })
+  fireEvent(window, new Event('resize'))
+  expect(c.width).toBe(640)
+  expect(c.height).toBe(480)
+})

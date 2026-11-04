@@ -109,6 +109,8 @@ export function Canvas({ ref, onChange, height = 420 }: { ref?: Ref<CanvasHandle
     if (!c) return
     const resize = () => {
       const r = c.getBoundingClientRect()
+      // hidden (display:none, e.g. after answering): keep the bitmap so a later export still works
+      if (!r.width || !r.height) return
       c.width = Math.round(r.width * dpr())
       c.height = Math.round(r.height * dpr())
       renderBase()
