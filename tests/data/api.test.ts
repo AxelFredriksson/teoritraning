@@ -121,3 +121,37 @@ test('resetLecture calls the lecture reset rpc and drops queued reviews for that
   const left = JSON.parse(localStorage.getItem('pendingReviews')!).map((r: { cardId: string }) => r.cardId)
   expect(left).toEqual(['other'])
 })
+
+test('saveReview stores the verdict as last_verdict in card_state', async () => {
+  const { client, calls } = fakeClient()
+  await createApi(client as never).saveReview({ ...review, verdict: 'partial' })
+  expect(calls.find((c) => c.table === 'card_state')!.payload).toEqual(expect.objectContaining({ last_verdict: 'partial' }))
+})
+
+test('loadCourse maps last_verdict to lastVerdict', async () => {
+  const rows: Record<string, unknown> = {
+    concepts: [], cards: [], user_stats: null,
+    card_state: [{ card_id: 'c1', fsrs: {}, due: '2026-10-25T00:00:00Z', last_verdict: 'incorrect' }],
+  }
+  const selected: Record<string, string> = {}
+  const query = (table: string) => {
+    const q = { eq: () => q, maybeSingle: () => q, then: (ok: (r: Res) => void) => ok({ data: rows[table], error: null }) }
+    return q
+  }
+  const client = {
+    from: (table: string) => ({ select: (cols: string) => { selected[table] = cols; return query(table) } }),
+    auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) },
+  }
+  const d = await createApi(client as never).loadCourse('TATA77')
+  expect(selected.card_state).toContain('last_verdict')
+  expect(d.states.get('c1')?.lastVerdict).toBe('incorrect')
+})
+
+test('resetConcept calls the concept reset rpc and drops queued reviews for that concept', async () => {
+  localStorage.setItem('pendingReviews', JSON.stringify([{ ...review, cardId: 'in-concept' }, { ...review, cardId: 'other' }]))
+  const { client, calls } = fakeClient({ upsertError: true })
+  await createApi(client as never).resetConcept('k1', ['in-concept'])
+  expect(calls).toContainEqual(expect.objectContaining({ table: 'rpc:reset_concept_progress', payload: { p_concept: 'k1' } }))
+  const left = JSON.parse(localStorage.getItem('pendingReviews')!).map((r: { cardId: string }) => r.cardId)
+  expect(left).toEqual(['other'])
+})

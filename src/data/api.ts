@@ -57,7 +57,7 @@ export function createApi(client: Supa) {
   async function write(r: ReviewWrite): Promise<void> {
     const uid = await userId()
     const results = await Promise.all([
-      client.from('card_state').upsert({ user_id: uid, card_id: r.cardId, fsrs: r.state.fsrs, due: r.state.due }),
+      client.from('card_state').upsert({ user_id: uid, card_id: r.cardId, fsrs: r.state.fsrs, due: r.state.due, last_verdict: r.verdict }),
       client
         .from('review_log')
         .upsert({ client_id: r.clientId, user_id: uid, card_id: r.cardId, verdict: r.verdict, source: r.source }, { onConflict: 'client_id', ignoreDuplicates: true }),
@@ -104,7 +104,7 @@ export function createApi(client: Supa) {
       const [concepts, cards, states, stats] = await Promise.all([
         client.from('concepts').select('*').eq('course_id', courseId),
         client.from('cards').select('*').eq('course_id', courseId),
-        client.from('card_state').select('card_id, fsrs, due').eq('user_id', uid),
+        client.from('card_state').select('card_id, fsrs, due, last_verdict').eq('user_id', uid),
         client.from('user_stats').select('*').eq('user_id', uid).maybeSingle(),
       ])
       const err = [concepts, cards, states, stats].find((x) => x.error)
@@ -112,7 +112,7 @@ export function createApi(client: Supa) {
       return {
         concepts: concepts.data as ConceptRow[],
         cards: cards.data as CardRow[],
-        states: new Map((states.data ?? []).map((s) => [s.card_id as string, { fsrs: s.fsrs, due: s.due } as CardState])),
+        states: new Map((states.data ?? []).map((s) => [s.card_id as string, { fsrs: s.fsrs, due: s.due, lastVerdict: s.last_verdict ?? null } as CardState])),
         stats: stats.data
           ? { points: stats.data.points, streak: stats.data.streak, lastActive: stats.data.last_active }
           : { points: 0, streak: 0, lastActive: null },
@@ -138,6 +138,14 @@ export function createApi(client: Supa) {
       const inLecture = new Set(cardIds)
       writePending(readPending().filter((r) => !inLecture.has(r.cardId)))
       const { error } = await client.rpc('reset_lecture_progress', { p_course: courseId, p_lecture: lecture })
+      if (error) throw new Error(error.message)
+    },
+
+    /** Same as resetCourse, limited to the cards of one concept. */
+    async resetConcept(conceptId: string, cardIds: string[]): Promise<void> {
+      const inConcept = new Set(cardIds)
+      writePending(readPending().filter((r) => !inConcept.has(r.cardId)))
+      const { error } = await client.rpc('reset_concept_progress', { p_concept: conceptId })
       if (error) throw new Error(error.message)
     },
 
