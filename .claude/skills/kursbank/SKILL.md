@@ -114,7 +114,11 @@ What to verify:
 - the **flagged** cards of that lecture, when a new trusted source that could support them has been added (e.g. a lecture PDF that was missing before)
 - nothing else. A card that is unchanged since HEAD, and whose concept is unchanged, keeps its old verdict.
 
-The verifier returns JSON verdicts. **You** merge them into `verify/LNN.json`: replace the entries for the checked ids and keep every other entry exactly as it was. A card without a verdict is flagged "Ej kontrollerad" by `merge.ts`, so never drop verdicts for unchanged cards.
+The verifier returns JSON verdicts. **You** merge them into `verify/LNN.json`:
+
+1. Check that the set of ids in the reply equals the `verify` list you sent (plus any flagged cards you asked it to re-check). For ids that are missing, dispatch a fresh verifier for just those ids. Ignore ids you did not ask for.
+2. **Delete the entry for every id on the `verify` list** from `verify/LNN.json` first, then insert the new verdicts. An id that still has no new verdict therefore has no entry at all, and `merge.ts` flags it "Ej kontrollerad". Never keep an old PASS for a card on the `verify` list: its content (or its concept) changed, so the old verdict no longer applies.
+3. Keep every other entry exactly as it was. A card without a verdict is flagged "Ej kontrollerad" by `merge.ts`, so never drop verdicts for cards that were not on the list.
 
 Do not "fix" a FLAG by editing the card yourself and marking it PASS. If a flagged card is worth fixing, send it back to the lecture's generator and have a fresh verifier check the new version.
 
