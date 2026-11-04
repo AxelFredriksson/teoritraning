@@ -8,19 +8,14 @@ import type { CardRow, CardState } from '../types'
 
 export type Mastery = 'new' | 'learning' | 'mastered'
 
-const REVIEW_STATE = 2 // ts-fsrs State.Review
-const STABLE_DAYS = 7
-
-const isStable = (s: CardState | undefined) =>
-  !!s && (s.fsrs as { state?: number }).state === REVIEW_STATE && Number((s.fsrs as { stability?: number }).stability ?? 0) >= STABLE_DAYS
-
+/** Finished once every active card's latest answer was correct. */
 export function conceptMastery(cards: CardRow[], states: Map<string, CardState>): Mastery {
   const active = cards.filter((c) => c.status === 'active')
   if (active.length === 0 || active.every((c) => !states.has(c.id))) return 'new'
-  return active.every((c) => isStable(states.get(c.id))) ? 'mastered' : 'learning'
+  return active.every((c) => states.get(c.id)?.lastVerdict === 'correct') ? 'mastered' : 'learning'
 }
 
-const LABEL: Record<Mastery, string> = { new: 'Ny', learning: 'På gång', mastered: 'Sitter' }
+const LABEL: Record<Mastery, string> = { new: 'Ny', learning: 'Påbörjad', mastered: 'Färdig' }
 const DOT: Record<Mastery, string> = { new: 'var(--line)', learning: 'var(--learning)', mastered: 'var(--mastered)' }
 
 function ConfirmReset({
@@ -67,15 +62,18 @@ export function Overview({
   onPractice,
   onReset,
   onResetLecture,
+  onResetConcept,
 }: {
   data: CourseData
   onBack: () => void
   onPractice: (f: PickFilter) => void
   onReset?: () => Promise<void>
   onResetLecture?: (lecture: number) => Promise<void>
+  onResetConcept?: (conceptId: string) => Promise<void>
 }) {
   const [confirmReset, setConfirmReset] = useState(false)
   const [confirmLecture, setConfirmLecture] = useState<number | null>(null)
+  const [confirmConcept, setConfirmConcept] = useState<string | null>(null)
   const byConcept = new Map<string, CardRow[]>()
   for (const c of data.cards) byConcept.set(c.concept_id, [...(byConcept.get(c.concept_id) ?? []), c])
   const rows = data.concepts
@@ -93,7 +91,8 @@ export function Overview({
       else n.add(id)
       return n
     })
-  const cardMastery = (c: CardRow): Mastery => (!data.states.has(c.id) ? 'new' : isStable(data.states.get(c.id)) ? 'mastered' : 'learning')
+  const cardMastery = (c: CardRow): Mastery =>
+    !data.states.has(c.id) ? 'new' : data.states.get(c.id)?.lastVerdict === 'correct' ? 'mastered' : 'learning'
 
   return (
     <main className="screen">
@@ -107,8 +106,8 @@ export function Overview({
           <span style={{ width: pct(totals.learning), background: DOT.learning }} />
         </div>
         <div className="row muted">
-          <span><b>{totals.mastered}</b> sitter</span>
-          <span><b>{totals.learning}</b> på gång</span>
+          <span><b>{totals.mastered}</b> färdiga</span>
+          <span><b>{totals.learning}</b> påbörjade</span>
           <span><b>{totals.new}</b> nya</span>
         </div>
       </div>
@@ -162,7 +161,22 @@ export function Overview({
                       </li>
                     ))}
                   </ul>
-                  <button className="btn" onClick={() => onPractice({ conceptId: k.id })}>Öva på det här begreppet</button>
+                  <div className="row">
+                    <button className="btn" onClick={() => onPractice({ conceptId: k.id })}>Öva på det här begreppet</button>
+                    {onResetConcept && confirmConcept !== k.id && (
+                      <button className="btn ghost" onClick={() => setConfirmConcept(k.id)}>Återställ begreppet</button>
+                    )}
+                  </div>
+                  {onResetConcept && confirmConcept === k.id && (
+                    <div className="panel stack danger-zone">
+                      <ConfirmReset
+                        warning="Alla kort i begreppet blir nya igen. Det går inte att ångra."
+                        confirmLabel="Ja, återställ begreppet"
+                        onConfirm={() => onResetConcept(k.id)}
+                        onDone={() => setConfirmConcept(null)}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>

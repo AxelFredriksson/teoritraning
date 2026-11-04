@@ -121,6 +121,10 @@ export default function App() {
           await api.resetLecture(courseId, lecture, data.cards.filter((c) => inLecture.has(c.concept_id)).map((c) => c.id))
           await reload()
         }}
+        onResetConcept={async (conceptId) => {
+          await api.resetConcept(conceptId, data.cards.filter((c) => c.concept_id === conceptId).map((c) => c.id))
+          await reload()
+        }}
       />
     )
   }
