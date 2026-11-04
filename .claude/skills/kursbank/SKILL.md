@@ -146,6 +146,7 @@ Print the merge summary and the dry-run JSON (the upload plan) to Axel, and save
 - the source diff from step 1, including any `removed` files
 - the faktakunskaper coverage result, with every deliberately excluded row and its reason
 - the flagged cards grouped by reason (calc mismatch, only `inlasning/`, ambiguous, not verified)
+- `adminEditedSkipped` from the dry-run JSON: cards whose text Axel edited in the Admin screen. The uploader never overwrites them, so any local change to these cards is **not** applied. List the ids and tell Axel to apply wanted changes by hand in Admin (retiring them still works)
 
 ### 7. Upload, then record the manifest
 

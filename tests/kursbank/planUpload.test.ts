@@ -172,3 +172,20 @@ test('splitWrites sends demote as status-only', () => {
   expect(full).toEqual([])
   expect(statusOnly.map((x) => x.id)).toEqual(['a'])
 })
+
+test('admin-edited card is never overwritten on content change and is listed', () => {
+  const c = card({ promptMd: 'ny lokal text' })
+  const r = plan(bankOf(c), [remoteOf(card(), { content_hash: 'admin-edited', reviewed_at: '2026-01-01' })], ['c1'])
+  expect(r.writes).toEqual([])
+  expect(r.skipped).toBe(1)
+  expect(r.summary.adminEditedSkipped).toEqual(['c1'])
+  expect(r.summary).toMatchObject({ updated: 0, requeued: 0 })
+})
+
+test('admin-edited card can still be retired (status-only)', () => {
+  const c = card({ status: 'retired' })
+  const r = plan(bankOf(c), [remoteOf(c, { content_hash: 'admin-edited', reviewed_at: '2026-01-01' })])
+  expect(r.writes).toEqual([{ id: 'c1', kind: 'retire', row: { id: 'c1', status: 'retired' } }])
+  expect(r.summary.adminEditedSkipped).toEqual([])
+  expect(plan(bankOf(c), [remoteOf(c, { content_hash: 'admin-edited', status: 'retired' })]).writes).toEqual([])
+})

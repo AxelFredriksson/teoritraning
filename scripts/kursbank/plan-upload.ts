@@ -8,6 +8,9 @@ export type RemoteCard = {
   content_hash: string | null
   reviewed_at: string | null
 }
+/** content_hash the Admin screen writes when Axel edits a card's text; such a card's content is never overwritten. */
+export const ADMIN_EDITED = 'admin-edited'
+
 export type CardWrite = { id: string; row: Record<string, unknown>; kind: 'insert' | 'update' | 'release' | 'retire' | 'demote' }
 export type UploadPlan = {
   writes: CardWrite[]
@@ -15,6 +18,8 @@ export type UploadPlan = {
   summary: {
     inserted: number; updated: number; requeued: number; released: number; retired: number; demoted: number
     untouchedMissingLocally: string[]
+    /** Admin-edited cards whose local version (if it differs) was not uploaded. */
+    adminEditedSkipped: string[]
   }
 }
 
@@ -63,7 +68,7 @@ export function cardHash(conceptId: string, c: Card): string {
 export function planUpload(bank: Bank, remote: RemoteCard[], reportedIds: Set<string>, today: string): UploadPlan {
   const byId = new Map(remote.map((r) => [r.id, r]))
   const writes: CardWrite[] = []
-  const summary = { inserted: 0, updated: 0, requeued: 0, released: 0, retired: 0, demoted: 0, untouchedMissingLocally: [] as string[] }
+  const summary = { inserted: 0, updated: 0, requeued: 0, released: 0, retired: 0, demoted: 0, untouchedMissingLocally: [] as string[], adminEditedSkipped: [] as string[] }
   let skipped = 0
   const localIds = new Set<string>()
 
@@ -79,6 +84,14 @@ export function planUpload(bank: Bank, remote: RemoteCard[], reportedIds: Set<st
       if (!r) {
         writes.push({ id: c.id, kind: 'insert', row: full(c.status, c.verifyNote ?? null) })
         summary.inserted++
+      } else if (r.content_hash === ADMIN_EDITED) {
+        if (c.status === 'retired' && r.status !== 'retired') {
+          writes.push({ id: c.id, kind: 'retire', row: { id: c.id, status: 'retired' } })
+          summary.retired++
+        } else {
+          skipped++
+          if (c.status !== 'retired') summary.adminEditedSkipped.push(c.id)
+        }
       } else if (r.content_hash === hash) {
         if (c.status === 'retired' && r.status !== 'retired') {
           writes.push({ id: c.id, kind: 'retire', row: { id: c.id, status: 'retired' } })

@@ -20,7 +20,8 @@ export function createAdminApi(client: Supa): AdminApi {
       check(await client.from('cards').update({ status, reviewed_at: new Date().toISOString() }).eq('id', id))
     },
     async updateCard(id, patch) {
-      check(await client.from('cards').update({ ...patch, reviewed_at: new Date().toISOString() }).eq('id', id))
+      // 'admin-edited' tells the kursbank uploader never to overwrite this text with the local card.
+      check(await client.from('cards').update({ ...patch, content_hash: 'admin-edited', reviewed_at: new Date().toISOString() }).eq('id', id))
     },
     async getSettings() {
       const r = await client.from('settings').select('key, value')

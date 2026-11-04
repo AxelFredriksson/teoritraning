@@ -30,3 +30,10 @@ test('updateCard writes reviewed_at alongside the patch', async () => {
   expect(calls[0].payload.prompt_md).toBe('p')
   expect(typeof calls[0].payload.reviewed_at).toBe('string')
 })
+
+test('updateCard marks the card admin-edited so the uploader never overwrites the edit', async () => {
+  const { client, calls } = fakeClient()
+  await createAdminApi(client as never).updateCard('c1', { prompt_md: 'p', reference_answer_md: 'a', rubric_md: 'r' })
+  expect(calls[0].payload.content_hash).toBe('admin-edited')
+  expect(typeof calls[0].payload.reviewed_at).toBe('string')
+})
