@@ -42,3 +42,8 @@ test('sign out button calls onSignOut', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Logga ut' }))
   expect(onSignOut).toHaveBeenCalledTimes(1)
 })
+
+test('start screen shows which app version is running', () => {
+  render(<Home {...props} data={d()} onStart={vi.fn()} />)
+  expect(screen.getByText(/^Version /)).toBeInTheDocument()
+})

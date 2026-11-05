@@ -102,6 +102,7 @@ export function Home({
         <span className="spacer" />
         <button className="btn ghost" onClick={onSignOut}>Logga ut</button>
       </div>
+      <p className="muted" style={{ fontSize: 12, textAlign: "center" }}>Version {new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm", dateStyle: "short", timeStyle: "short" }).format(new Date(__APP_BUILD__))}</p>
     </main>
   )
 }
