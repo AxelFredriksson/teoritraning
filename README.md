@@ -1,32 +1,35 @@
-# React + TypeScript + Vite
+# Teoriträning
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+PWA för teoriträning inför tentor med spaced repetition. Korten bygger på kursmaterialet och ett AI-stöd rättar svaren, både skrivna och handskrivna. Appen är gjord för iPad med penna.
 
-Currently, two official plugins are available:
+Live: <https://teoritraning.vercel.app>
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Stack
 
-## React Compiler
+- React 19, TypeScript och Vite (PWA via `vite-plugin-pwa`)
+- Supabase för auth (e-post-OTP), databas och en edge function som rättar svar
+- `ts-fsrs` för schemaläggning, KaTeX för matematik och `perfect-freehand` för handskrift
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Kom igång
 
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+npm install
+cp .env.example .env.local   # fyll i VITE_SUPABASE_URL och VITE_SUPABASE_ANON_KEY
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+| Kommando | Vad det gör |
+| --- | --- |
+| `npm run dev` | Startar dev-servern |
+| `npm test` | Kör testerna (Vitest) |
+| `npm run lint` | Kör oxlint |
+| `npm run build` | Bygger för produktion |
+| `bash scripts/deploy.sh` | Deployar till Vercel |
+
+## Struktur
+
+- `src/`: appen (skärmar, kort, sessioner, SRS och handskrift)
+- `supabase/`: migrationer och edge functions
+- `bank/`: frågebanker per kurs (till exempel `tata77.json` och `tppe29/`). Kursens källfiler i `bank/src/` versionshanteras inte.
+- `scripts/`: verktyg för frågebanken (validering, sammanslagning, export till SQL)
+- `.claude/skills/kursbank/`: `/kursbank <KURS>` bygger kort från nytt kursmaterial och laddar upp dem till Supabase
