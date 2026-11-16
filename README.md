@@ -6,8 +6,8 @@ Live: <https://teoritraning.vercel.app>
 
 <p align="center">
   <img src="docs/screenshots/hem.png" width="32%" alt="Hemskärmen med streak, poäng, kort som väntar och val av nivå och föreläsning">
+  <img src="docs/screenshots/ai-rattning.png" width="32%" alt="Ett handskrivet svar som AI:n har rättat, med feedback, det som saknas och referenssvaret">
   <img src="docs/screenshots/rakna-med-penna.png" width="32%" alt="Ett räknekort med yta för handskrift med penna">
-  <img src="docs/screenshots/valj-kurs.png" width="32%" alt="Val av kurs">
 </p>
 
 ## Stack
