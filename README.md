@@ -4,6 +4,12 @@ PWA för teoriträning inför tentor med spaced repetition. Korten bygger på ku
 
 Live: <https://teoritraning.vercel.app>
 
+<p align="center">
+  <img src="docs/screenshots/hem.png" width="32%" alt="Hemskärmen med streak, poäng, kort som väntar och val av nivå och föreläsning">
+  <img src="docs/screenshots/rakna-med-penna.png" width="32%" alt="Ett räknekort med yta för handskrift med penna">
+  <img src="docs/screenshots/valj-kurs.png" width="32%" alt="Val av kurs">
+</p>
+
 ## Stack
 
 - React 19, TypeScript och Vite (PWA via `vite-plugin-pwa`)
