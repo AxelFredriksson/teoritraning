@@ -30,6 +30,6 @@ npm run dev
 
 - `src/`: appen (skärmar, kort, sessioner, SRS och handskrift)
 - `supabase/`: migrationer och edge functions
-- `bank/`: frågebanker per kurs (till exempel `tata77.json` och `tppe29/`). Kursens källfiler i `bank/src/` versionshanteras inte.
+- `bank/`: frågebanker per kurs. De riktiga bankerna bygger på kursmaterial och versionshanteras inte. `bank/example/example.json` är ett påhittat exempel som visar formatet.
 - `scripts/`: verktyg för frågebanken (validering, sammanslagning, export till SQL)
 - `.claude/skills/kursbank/`: `/kursbank <KURS>` bygger kort från nytt kursmaterial och laddar upp dem till Supabase

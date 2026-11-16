@@ -36,3 +36,7 @@ bank/src/
 
 bank/*/extract/
 !.env.kursbank.example
+
+# Frågebankerna bygger på kursmaterial och versionshanteras inte, utom exemplet.
+bank/*
+!bank/example/
